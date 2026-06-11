@@ -1,20 +1,32 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# Real-time Fabric Inventory
 
-# Run and deploy your AI Studio app
+This application is an internal real-time system spanning mobile captures and desktop tagging to digitize fabric samples with QR codes.
 
-This contains everything you need to run your app locally.
+## Features
 
-View your app in AI Studio: https://ai.studio/apps/19ce40f9-975b-4174-8dcf-880e0958c53b
+- **Photographer Workspace (Mobile)**: Capture fabric photos on smartphones and upload them directly to storage.
+- **Tagger Workspace (Desktop)**: View captured samples in real-time, tag styles, generate printable/copyable QR codes, and archive inventory.
 
-## Run Locally
+## Development
 
-**Prerequisites:**  Node.js
+### Prerequisites
 
+- Node.js (version 20 or higher)
+
+### Run Locally
 
 1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+   ```bash
+   npm install
+   ```
+2. Configure environment variables in `.env`:
+   ```text
+   NEXT_PUBLIC_SUPABASE_URL="https://your-project.supabase.co"
+   NEXT_PUBLIC_SUPABASE_ANON_KEY="your-anon-key"
+   APP_URL="http://localhost:3000"
+   ```
+3. Run the development server:
+   ```bash
+   npm run dev
+   ```
+4. Open [http://localhost:3000](http://localhost:3000) in your browser.

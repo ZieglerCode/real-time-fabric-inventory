@@ -22,7 +22,6 @@ Configure the following environment variables in the Coolify App Dashboard.
 | `NODE_ENV` | Runtime | Set to `production`. |
 | `NEXT_PUBLIC_SUPABASE_URL` | **Build-Time** & Runtime | The API URL of your Supabase project (e.g., `https://xxxx.supabase.co`). |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | **Build-Time** & Runtime | The anonymous public API key of your Supabase project. |
-| `GEMINI_API_KEY` | Runtime | Your Google Gemini API Key. |
 | `APP_URL` | Runtime | The URL where the application is hosted (e.g., `https://fabric-inventory.apps.mathishoffmann.com`). |
 
 ---
