@@ -1,0 +1,6 @@
+{
+  "name": "Real-time Fabric Inventory",
+  "description": "Internal real-time system spanning mobile captures and desktop tagging to digitize fabric samples with QR codes.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
