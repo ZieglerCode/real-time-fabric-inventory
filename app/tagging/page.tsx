@@ -2,17 +2,21 @@
 
 import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { 
-  Laptop, CheckCircle2, AlertCircle, Copy, Loader2, Compass, 
-  Tag, Download, Printer, Layers, Clock, ArrowRight, ArrowLeft, ClipboardCheck,
-  Search, ExternalLink, RefreshCw, Undo2, Ban, User, LogOut, ShieldAlert, Bluetooth, Usb
+  Laptop, AlertCircle, Loader2, Compass, 
+  ArrowLeft, RefreshCw, LogOut, ShieldAlert
 } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/use-auth';
-import { usePrinter, PrinterLanguage } from '@/hooks/use-printer';
-import ScannableCode, { CodeType } from '@/components/scannable-code';
-import { QRCodeSVG } from 'qrcode.react';
+import { CodeType } from '@/components/scannable-code';
+
+// Import extracted components
+import TaggingSidebar from '@/components/tagging-sidebar';
+import FabricImagePreview from '@/components/fabric-image-preview';
+import LabelingForm from '@/components/labeling-form';
+import DirectPrinterPanel from '@/components/direct-printer-panel';
+import DigitizationHistory from '@/components/digitization-history';
 
 // Define the fabric schema
 interface Fabric {
@@ -208,22 +212,6 @@ function TaggingPageContent() {
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'error' | 'local'>(() => 
     isConfigured ? 'connecting' : 'local'
   );
-
-  const {
-    mode: printerMode,
-    setMode: setPrinterMode,
-    status: printerStatus,
-    connectedDeviceName,
-    language: printerLanguage,
-    setLanguage: setPrinterLanguage,
-    errorMsg: printerErrorMsg,
-    connectUSB,
-    connectBluetooth,
-    disconnectPrinter,
-    printDirect,
-    hasUsbSupport,
-    hasBluetoothSupport
-  } = usePrinter();
 
   // Dynamic code formats for thermal printer stickers
   const [print2DFormat, setPrint2DFormat] = useState<CodeType>('qrcode');
@@ -671,27 +659,6 @@ function TaggingPageContent() {
     loadLocalData();
   };
 
-  const handlePrint = async () => {
-    if (printerMode === 'browser') {
-      window.print();
-    } else {
-      if (!savedQrData) return;
-      const labelData = {
-        name: savedQrData.name || 'Unnamed Fabric',
-        qrCodeId: savedQrData.id || '',
-        sessionCode: sessionCode || 'SANDBOX'
-      };
-      await printDirect(labelData, connectionStatus === 'local');
-    }
-  };
-
-  // Filter history log by search query
-  const filteredCompletedFabrics = completedFabrics.filter(fabric => {
-    const nameMatch = fabric.name?.toLowerCase().includes(searchQuery.toLowerCase()) || false;
-    const codeMatch = fabric.qr_code_id?.toLowerCase().includes(searchQuery.toLowerCase()) || false;
-    return nameMatch || codeMatch;
-  });
-
   // 1. Loading States
   if (authLoading || sessionResolving || checkingSeat) {
     return (
@@ -795,13 +762,13 @@ function TaggingPageContent() {
             </div>
           )}
           {connectionStatus === 'error' && (
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-rose-50 border border-rose-100 rounded-full text-rose-700 uppercase font-bold text-[10px]">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-rose-50 border border-rose-100 rounded-full text-rose-705 uppercase font-bold text-[10px]">
               <AlertCircle className="h-3.5 w-3.5" />
               <span>Offline</span>
             </div>
           )}
           {connectionStatus === 'local' && (
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 border border-amber-100 rounded-full text-amber-700 uppercase font-bold text-[10px]">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 border border-amber-100 rounded-full text-amber-705 uppercase font-bold text-[10px]">
               <Compass className="h-3.5 w-3.5 text-amber-500" />
               <span>Sandbox Mode</span>
             </div>
@@ -809,8 +776,9 @@ function TaggingPageContent() {
 
           {isConfigured && (
             <button 
+              type="button"
               onClick={() => fetchFabrics(false)}
-              className="p-1 px-2.5 text-slate-500 hover:text-slate-800 border border-slate-200 hover:border-slate-300 bg-white shadow-xs rounded-lg transition-all cursor-pointer"
+              className="p-1 px-2.5 text-slate-500 hover:text-slate-800 border border-slate-200 hover:border-slate-350 bg-white shadow-xs rounded-lg transition-all cursor-pointer"
               title="Manual Sync"
             >
               <RefreshCw className="h-3.5 w-3.5" />
@@ -819,8 +787,9 @@ function TaggingPageContent() {
 
           {isConfigured && user && (
             <div className="flex items-center gap-2 border-l border-slate-200 pl-3">
-              <span className="text-slate-500 truncate max-w-[120px] font-medium">{user.email}</span>
+              <span className="text-slate-555 truncate max-w-[120px] font-medium">{user.email}</span>
               <button
+                type="button"
                 onClick={signOut}
                 className="p-1.5 hover:bg-rose-50 hover:text-rose-600 text-slate-400 rounded-lg border border-transparent hover:border-rose-100 transition-all cursor-pointer"
                 title="Sign Out"
@@ -836,81 +805,14 @@ function TaggingPageContent() {
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden relative z-10">
         
         {/* LEFT COLUMN: Queue of pending uploads */}
-        <div className="w-full lg:w-[350px] border-r border-slate-200 flex flex-col bg-white shrink-0">
-          <div className="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-50/50">
-            <div className="flex items-center gap-2">
-              <div className="bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100 text-[10px] font-bold text-indigo-700 uppercase">{fabrics.length} Waiting</div>
-              <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider">New Fabric Photos</h2>
-            </div>
-            {connectionStatus === 'local' && (
-              <button 
-                onClick={testTriggerMockCapture}
-                className="text-[10px] inline-flex items-center gap-1 text-indigo-650 hover:text-indigo-800 border border-indigo-200 bg-indigo-50 px-2 py-1 rounded-lg font-bold shadow-xs transition-all cursor-pointer"
-              >
-                + Mock Upload
-              </button>
-            )}
-          </div>
-
-          <div className="flex-1 overflow-y-auto p-3 space-y-2.5">
-            {fabrics.length === 0 ? (
-              <div className="text-center py-16 px-4 space-y-3">
-                <div className="h-10 w-10 bg-slate-50 rounded-full flex items-center justify-center text-slate-400 mx-auto border border-slate-100">
-                  <Clock className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-xs text-slate-700 font-bold">Queue is empty</p>
-                  <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">Waiting for photographer to upload fabric photos...</p>
-                </div>
-              </div>
-            ) : (
-              fabrics.map((item, index) => (
-                <div 
-                  key={item.id}
-                  onClick={() => setActiveFabric(item)}
-                  className={`flex gap-3 p-3 rounded-xl border transition-all cursor-pointer ${
-                    activeFabric?.id === item.id 
-                      ? 'bg-indigo-50/60 border-indigo-200 shadow-xs' 
-                      : 'bg-white border-slate-100 hover:bg-slate-50/30 hover:border-slate-200'
-                  }`}
-                >
-                  {/* Thumbnail */}
-                  <div className="h-14 w-14 rounded-lg overflow-hidden bg-slate-50 border border-slate-200 flex-shrink-0 relative">
-                    <img 
-                      src={item.image_url} 
-                      alt="Fabric preview thumbnail" 
-                      className="object-cover h-full w-full"
-                    />
-                    <div className="absolute bottom-0 right-0 bg-slate-900/60 text-[9px] px-1 rounded-tl text-white font-medium">
-                      #{index + 1}
-                    </div>
-                  </div>
-
-                  {/* Details */}
-                  <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
-                    <span className="text-[10px] text-slate-400 font-semibold truncate block">ID: {item.id.slice(0, 8)}...</span>
-                    <span className="text-[11px] text-slate-600 font-semibold block truncate">Photo review pending</span>
-                    <span className="text-[9px] text-indigo-650 block font-bold">
-                      {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-
-          <div className="p-4 bg-slate-50/50 border-t border-slate-200 flex justify-between items-center shrink-0">
-            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Fabric Catalog Tool</span>
-            {connectionStatus === 'local' && (
-              <button 
-                onClick={cleanDemoDatabase}
-                className="text-[10px] text-rose-600 hover:text-rose-700 font-bold cursor-pointer"
-              >
-                Reset sandbox queue
-              </button>
-            )}
-          </div>
-        </div>
+        <TaggingSidebar
+          fabrics={fabrics}
+          activeFabric={activeFabric}
+          setActiveFabric={setActiveFabric}
+          connectionStatus={connectionStatus}
+          testTriggerMockCapture={testTriggerMockCapture}
+          cleanDemoDatabase={cleanDemoDatabase}
+        />
 
         {/* CENTER / RIGHT AREA: Fabric details & labeling */}
         <div className="flex-1 flex flex-col bg-[#F8FAFC] overflow-y-auto">
@@ -918,507 +820,41 @@ function TaggingPageContent() {
             <div className="flex-1 p-6 max-w-4xl mx-auto w-full grid grid-cols-1 md:grid-cols-12 gap-8 items-start animate-panel">
               
               {/* Image Preview Block */}
-              <div className="md:col-span-6 bg-white rounded-3xl p-5 border border-slate-200/80 shadow-sm block space-y-4">
-                <div className="flex justify-between items-center text-xs text-slate-500">
-                  <span className="bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-100 flex items-center gap-1.5 text-indigo-700 font-bold">
-                    <span className="h-1.5 w-1.5 rounded-full bg-indigo-500 animate-pulse" /> Fabric Snapshot
-                  </span>
-                  <span className="font-mono">Reference: {activeFabric.id.substring(0, 8)}...</span>
-                </div>
-                
-                {/* Large Photo Preview */}
-                <div className="rounded-2xl overflow-hidden border border-slate-200 bg-slate-50 aspect-square relative">
-                  <img 
-                    src={activeFabric.image_url} 
-                    alt="Incoming Fabric preview" 
-                    className="object-contain h-full w-full"
-                  />
-                  <div className="absolute top-2.5 right-2.5 bg-slate-900/70 text-[10px] px-2.5 py-1 rounded-lg text-white font-semibold">
-                    1 of {fabrics.length} pending
-                  </div>
-                </div>
-
-                {/* Audit Attribution */}
-                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/50 text-[11px] text-slate-500 space-y-1.5">
-                  <p className="flex justify-between">
-                    <span>Captured At:</span> 
-                    <span className="text-slate-800 font-medium">
-                      {new Date(activeFabric.created_at).toLocaleString()}
-                    </span>
-                  </p>
-                  <p className="flex justify-between">
-                    <span>Uploaded By:</span> 
-                    <span className="text-slate-800 font-semibold truncate max-w-[150px]">
-                      {activeFabric.created_by_email || 'Photographer'}
-                    </span>
-                  </p>
-                </div>
-              </div>
+              <FabricImagePreview
+                activeFabric={activeFabric}
+                totalPending={fabrics.length}
+              />
 
               {/* Form & Actions */}
               <div className="md:col-span-6 space-y-6">
-                <div className="bg-white rounded-3xl border border-slate-200/80 p-6 shadow-sm space-y-5 flex flex-col justify-between">
-                  <div className="flex items-center gap-2 mb-2 border-b border-slate-100 pb-4">
-                    <Tag className="h-5 w-5 text-indigo-650" />
-                    <h3 className="font-bold text-slate-800 text-base">Label Fabric</h3>
-                  </div>
-
-                  {!isDiscarding ? (
-                    <form onSubmit={handleSaveAndGenerateQR} className="space-y-4">
-                      <div className="space-y-3">
-                        <div className="flex justify-between items-center">
-                          <label htmlFor="fabric-name-input" className="text-xs font-bold text-slate-500 uppercase tracking-wider block">
-                            Fabric Name / Pattern Variant
-                          </label>
-                          
-                          {/* Smart tag trigger */}
-                          <button
-                            type="button"
-                            onClick={handleFetchSuggestions}
-                            disabled={detectLoading || saving}
-                            className="text-[10px] font-bold text-indigo-650 hover:text-indigo-850 flex items-center gap-1.5 transition-colors cursor-pointer border border-indigo-100 bg-indigo-50/50 hover:bg-indigo-50 px-2 py-1 rounded-lg disabled:opacity-50"
-                          >
-                            {detectLoading ? (
-                              <>
-                                <Loader2 className="h-3 w-3 animate-spin text-indigo-600" />
-                                <span>Scanning image...</span>
-                              </>
-                            ) : (
-                              <>
-                                <Tag className="h-3 w-3 text-indigo-500" />
-                                <span>Auto-detect features</span>
-                              </>
-                            )}
-                          </button>
-                        </div>
-
-                        {/* Suggestions result card */}
-                        {suggestions && (
-                          <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl space-y-2.5 animate-in fade-in duration-200">
-                            <div className="flex justify-between items-center text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                              <span>Detected Properties</span>
-                              <button
-                                type="button"
-                                onClick={() => setFabricName(suggestions.name)}
-                                className="text-[10px] text-indigo-650 hover:text-indigo-805 font-bold uppercase tracking-widest cursor-pointer"
-                              >
-                                Apply suggested name
-                              </button>
-                            </div>
-                            
-                            {/* Properties pills grid */}
-                            <div className="grid grid-cols-3 gap-2 text-[10.5px]">
-                              <div className="bg-white p-2 rounded-xl border border-slate-150 text-center">
-                                <span className="block text-[8px] text-slate-400 font-bold uppercase tracking-widest mb-0.5">Color</span>
-                                <span className="font-bold text-slate-700 truncate block" title={suggestions.color}>{suggestions.color}</span>
-                              </div>
-                              <div className="bg-white p-2 rounded-xl border border-slate-150 text-center">
-                                <span className="block text-[8px] text-slate-400 font-bold uppercase tracking-widest mb-0.5">Pattern</span>
-                                <span className="font-bold text-slate-700 truncate block" title={suggestions.pattern}>{suggestions.pattern}</span>
-                              </div>
-                              <div className="bg-white p-2 rounded-xl border border-slate-150 text-center">
-                                <span className="block text-[8px] text-slate-400 font-bold uppercase tracking-widest mb-0.5">Texture</span>
-                                <span className="font-bold text-slate-700 truncate block" title={suggestions.material}>{suggestions.material}</span>
-                              </div>
-                            </div>
-                            
-                            <div className="text-[11px] bg-white border border-slate-150 rounded-xl p-2.5 flex items-center justify-between gap-3">
-                              <span className="text-slate-500 font-medium">Suggested: <strong className="font-bold text-slate-800">{suggestions.name}</strong></span>
-                              <button
-                                type="button"
-                                onClick={() => setFabricName(suggestions.name)}
-                                className="shrink-0 text-[10px] bg-indigo-50 hover:bg-indigo-100 border border-indigo-100 px-2 py-1 rounded-lg text-indigo-700 font-bold transition-all cursor-pointer"
-                              >
-                                Use
-                              </button>
-                            </div>
-                          </div>
-                        )}
-
-                        {detectError && (
-                          <div className="p-3 bg-rose-50 border border-rose-100 text-rose-800 text-[10.5px] rounded-xl flex items-center gap-2 animate-in fade-in duration-200">
-                            <AlertCircle className="h-3.5 w-3.5 text-rose-500 shrink-0" />
-                            <span className="font-semibold">{detectError}</span>
-                          </div>
-                        )}
-
-                        <input 
-                          type="text"
-                          id="fabric-name-input"
-                          ref={inputRef}
-                          required
-                          value={fabricName}
-                          onChange={(e) => setFabricName(e.target.value)}
-                          placeholder="e.g. Indigo Herringbone Linen, Silk Satin 03"
-                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all placeholder:text-slate-400 font-medium text-slate-900 focus:bg-white text-sm"
-                          disabled={saving}
-                        />
-                      </div>
-
-                      <button
-                        type="submit"
-                        disabled={saving || !fabricName.trim()}
-                        className={`w-full py-4 bg-indigo-650 hover:bg-indigo-700 text-white rounded-2xl font-bold shadow-lg shadow-indigo-100 transition-colors flex items-center justify-center gap-2 cursor-pointer border-b-2 border-indigo-805 ${
-                          saving || !fabricName.trim()
-                            ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed shadow-none hover:bg-slate-100'
-                            : ''
-                        }`}
-                      >
-                        {saving ? (
-                          <>
-                            <Loader2 className="h-4 w-4 animate-spin text-white" />
-                            <span>Saving label...</span>
-                          </>
-                        ) : (
-                          <>
-                            <span>Generate QR & Save Label</span>
-                            <ArrowRight className="h-4 w-4" />
-                          </>
-                        )}
-                      </button>
-
-                      <div className="border-t border-slate-100 pt-4 flex justify-center">
-                        <button
-                          type="button"
-                          onClick={() => setIsDiscarding(true)}
-                          className="text-xs font-semibold text-rose-600 hover:text-rose-700 flex items-center gap-1.5 transition-colors cursor-pointer border border-transparent hover:border-rose-100 hover:bg-rose-50 px-3 py-2 rounded-xl"
-                        >
-                          <Ban className="h-3.5 w-3.5" />
-                          Unsuitable photo? Request retake
-                        </button>
-                      </div>
-                    </form>
-                  ) : (
-                    <form onSubmit={handleDiscard} className="space-y-4 animate-in fade-in duration-200">
-                      <div className="p-4 rounded-xl bg-rose-50 border border-rose-100 flex items-start gap-2.5 text-left">
-                        <Ban className="h-5 w-5 text-rose-500 shrink-0 mt-0.5" />
-                        <div>
-                          <h4 className="text-xs font-bold text-rose-900 uppercase tracking-wider">Request Retake</h4>
-                          <p className="text-[11px] text-rose-700 mt-0.5 font-sans leading-relaxed">
-                            This will notify the photographer on mobile that a new photo is needed.
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="space-y-2 mt-2">
-                        <label htmlFor="rejection-reason" className="text-xs font-bold text-slate-550 uppercase tracking-wider block">
-                          Reason for Retake
-                        </label>
-                        <input
-                          type="text"
-                          id="rejection-reason"
-                          required
-                          value={rejectionReason}
-                          onChange={(e) => setRejectionReason(e.target.value)}
-                          placeholder="e.g. Photo is blurry, shadow glare, wrong side up"
-                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-rose-500 focus:outline-none transition-all placeholder:text-slate-400 text-slate-900 focus:bg-white text-sm font-semibold"
-                          disabled={saving}
-                        />
-                      </div>
-
-                      {/* Suggestions */}
-                      <div className="space-y-1.5">
-                        <p className="text-[10px] uppercase font-bold text-slate-400">Suggestions:</p>
-                        <div className="flex flex-wrap gap-1.5">
-                          {["Blurry image quality", "Shadows/Glare on sample", "Incomplete crop frame", "Wrong side/texture visible"].map((txt) => (
-                            <button
-                              key={txt}
-                              type="button"
-                              onClick={() => setRejectionReason(txt)}
-                              className="text-[10.5px] font-sans px-2.5 py-1 border border-slate-200 bg-slate-50 rounded-lg hover:bg-indigo-55 hover:border-indigo-200 text-slate-650 hover:text-indigo-800 transition-all cursor-pointer font-bold"
-                            >
-                              {txt}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-3 pt-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIsDiscarding(false);
-                            setRejectionReason('');
-                          }}
-                          className="py-3 bg-slate-100 hover:bg-slate-200 border border-slate-200 font-bold rounded-xl text-xs uppercase tracking-wider transition-all cursor-pointer text-slate-650 text-center"
-                          disabled={saving}
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="submit"
-                          disabled={saving || !rejectionReason.trim()}
-                          className="py-3 bg-rose-600 hover:bg-rose-700 disabled:bg-rose-100 text-white font-bold rounded-xl text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md shadow-rose-100 border-b-2 border-rose-800"
-                        >
-                          {saving ? (
-                            <>
-                              <Loader2 className="h-4 w-4 animate-spin text-white" />
-                              <span>Requesting...</span>
-                            </>
-                          ) : (
-                            <>
-                              <span>Confirm Request</span>
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    </form>
-                  )}
-                </div>
+                <LabelingForm
+                  activeFabric={activeFabric}
+                  fabricName={fabricName}
+                  setFabricName={setFabricName}
+                  isDiscarding={isDiscarding}
+                  setIsDiscarding={setIsDiscarding}
+                  rejectionReason={rejectionReason}
+                  setRejectionReason={setRejectionReason}
+                  saving={saving}
+                  onSubmitLabel={handleSaveAndGenerateQR}
+                  onSubmitDiscard={handleDiscard}
+                  detectLoading={detectLoading}
+                  handleFetchSuggestions={handleFetchSuggestions}
+                  suggestions={suggestions}
+                  detectError={detectError}
+                  inputRef={inputRef}
+                />
 
                 {/* Print sticker preview */}
-                {savedQrData && (
-                  <div className="bg-white rounded-3xl border border-emerald-250 p-6 shadow-md animate-in fade-in zoom-in duration-300 print-tag-box bg-emerald-50/10 space-y-4">
-                    <div className="flex items-center gap-2 text-emerald-800 font-bold">
-                      <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" />
-                      <span className="text-xs">Sticker Label Generated!</span>
-                    </div>
-
-                    {/* PRINT ELEMENT STYLED FOR 50mm x 30mm (2x1.2 inch) THERMAL LABEL PRINTERS */}
-                    <div className="p-4 flex items-center justify-center bg-slate-50/50 rounded-2xl border border-slate-150/80 print:bg-white print:p-0">
-                      <div 
-                        id="thermal-sticker-label" 
-                        className="bg-white border border-slate-300 p-4 rounded-2xl flex flex-col justify-between items-center text-center shadow-xs w-72 h-44 print:border-none print:shadow-none print:rounded-none print:p-0 print:w-[2.2in] print:h-[1.2in] print:m-0"
-                      >
-                        <div className="w-full min-w-0">
-                          <p className="text-[12px] font-extrabold text-slate-950 truncate print:text-[10px] print:leading-tight">
-                            {savedQrData.name}
-                          </p>
-                          <p className="text-[8px] font-mono text-slate-400 font-bold uppercase tracking-wider mt-0.5 print:text-[7px]">
-                            ID: {savedQrData.id}
-                          </p>
-                        </div>
-
-                        {/* Codes side-by-side layout */}
-                        <div className="flex items-center justify-around w-full gap-4 mt-2">
-                          <div className="p-0.5 bg-white border border-slate-150 rounded shrink-0 print:border-none">
-                            <ScannableCode 
-                              value={savedQrData.id || ''} 
-                              type={print2DFormat} 
-                              scale={1.5}
-                            />
-                          </div>
-                          <div className="scale-90 origin-center shrink-0">
-                            <ScannableCode 
-                              value={savedQrData.id || ''} 
-                              type={print1DFormat} 
-                              scale={1.2} 
-                              height={9}
-                            />
-                          </div>
-                        </div>
-
-                        <div className="w-full border-t border-slate-100 pt-1.5 mt-2 flex justify-between items-center text-[7px] font-bold text-slate-400 uppercase tracking-widest print:text-[6px] print:mt-1">
-                          <span>Ziegler textile catalog</span>
-                          <span className="font-mono">{sessionCode.toUpperCase()}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Printer Configuration Panel */}
-                    <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-4 print:hidden">
-                      {/* Tab Selector for Printer Connection Mode */}
-                      <div>
-                        <label className="block text-[9.5px] font-bold text-slate-500 mb-1.5 uppercase tracking-wider">Printer Mode</label>
-                        <div className="grid grid-cols-3 gap-2 bg-slate-200/50 p-1 rounded-xl">
-                          <button
-                            type="button"
-                            onClick={() => setPrinterMode('browser')}
-                            className={`py-1.5 text-[10px] font-bold rounded-lg transition-all flex items-center justify-center gap-1 cursor-pointer ${
-                              printerMode === 'browser'
-                                ? 'bg-white text-indigo-650 shadow-xs border border-slate-200/50'
-                                : 'text-slate-500 hover:text-slate-700'
-                            }`}
-                          >
-                            <Printer className="h-3 w-3" />
-                            <span>System Print</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setPrinterMode('usb')}
-                            className={`py-1.5 text-[10px] font-bold rounded-lg transition-all flex items-center justify-center gap-1 cursor-pointer ${
-                              printerMode === 'usb'
-                                ? 'bg-white text-indigo-650 shadow-xs border border-slate-200/50'
-                                : 'text-slate-500 hover:text-slate-700'
-                            }`}
-                          >
-                            <Usb className="h-3 w-3" />
-                            <span>Direct USB</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setPrinterMode('bluetooth')}
-                            className={`py-1.5 text-[10px] font-bold rounded-lg transition-all flex items-center justify-center gap-1 cursor-pointer ${
-                              printerMode === 'bluetooth'
-                                ? 'bg-white text-indigo-650 shadow-xs border border-slate-200/50'
-                                : 'text-slate-500 hover:text-slate-700'
-                            }`}
-                          >
-                            <Bluetooth className="h-3 w-3" />
-                            <span>Bluetooth</span>
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Direct Printing Connection Drawer */}
-                      {printerMode !== 'browser' && (
-                        <div className="p-3.5 bg-white border border-slate-200 rounded-xl space-y-3 shadow-2xs">
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="font-semibold text-slate-500 text-[10px] uppercase tracking-wider">Status:</span>
-                            <div className="flex items-center gap-1.5">
-                              <span className={`h-1.5 w-1.5 rounded-full ${
-                                printerStatus === 'connected' ? 'bg-emerald-500 animate-pulse' :
-                                printerStatus === 'connecting' ? 'bg-amber-500 animate-pulse' :
-                                printerStatus === 'error' ? 'bg-rose-500' : 'bg-slate-400'
-                              }`} />
-                              <span className="text-[11px] font-bold capitalize text-slate-700">
-                                {printerStatus === 'connected' ? 'Connected' :
-                                 printerStatus === 'connecting' ? 'Connecting...' :
-                                 printerStatus === 'error' ? 'Connection Error' : 'Disconnected'}
-                              </span>
-                            </div>
-                          </div>
-
-                          {printerStatus === 'connected' && (
-                            <div className="flex items-center justify-between p-2.5 bg-emerald-50/50 border border-emerald-100 rounded-lg">
-                              <div className="min-w-0">
-                                <p className="text-[10px] text-emerald-800 font-bold uppercase tracking-wider">Device</p>
-                                <p className="text-xs font-semibold text-emerald-950 truncate">{connectedDeviceName}</p>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={disconnectPrinter}
-                                className="text-[10px] font-bold text-rose-650 hover:text-rose-800 px-2 py-1 bg-white border border-rose-100 hover:border-rose-200 rounded-lg shadow-2xs transition-all cursor-pointer"
-                              >
-                                Disconnect
-                              </button>
-                            </div>
-                          )}
-
-                          {printerStatus !== 'connected' && (
-                            <>
-                              {((printerMode === 'usb' && !hasUsbSupport) || (printerMode === 'bluetooth' && !hasBluetoothSupport)) ? (
-                                <div className="p-3 bg-amber-50 border border-amber-100 rounded-lg flex items-start gap-2 text-amber-800 text-[10.5px] font-medium leading-relaxed">
-                                  <AlertCircle className="h-4 w-4 shrink-0 text-amber-500 mt-0.5" />
-                                  <div>
-                                    <p className="font-bold">Not Supported</p>
-                                    <p>Direct {printerMode === 'usb' ? 'USB' : 'Bluetooth'} is unsupported in this browser. Please use Chrome or Edge on Desktop, or switch to System Print.</p>
-                                  </div>
-                                </div>
-                              ) : (
-                                <button
-                                  type="button"
-                                  disabled={printerStatus === 'connecting'}
-                                  onClick={() => {
-                                    if (printerMode === 'usb') {
-                                      connectUSB(connectionStatus === 'local');
-                                    } else {
-                                      connectBluetooth(connectionStatus === 'local');
-                                    }
-                                  }}
-                                  className={`w-full py-2.5 px-4 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-1.5 cursor-pointer text-white ${
-                                    printerStatus === 'connecting'
-                                      ? 'bg-slate-350 cursor-not-allowed shadow-none'
-                                      : 'bg-indigo-650 hover:bg-indigo-750 shadow-indigo-100 border-b border-indigo-850'
-                                  }`}
-                                >
-                                  {printerStatus === 'connecting' ? (
-                                    <>
-                                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                      <span>Searching Device...</span>
-                                    </>
-                                  ) : (
-                                    <>
-                                      {printerMode === 'usb' ? <Usb className="h-3.5 w-3.5" /> : <Bluetooth className="h-3.5 w-3.5" />}
-                                      <span>Connect {printerMode === 'usb' ? 'USB Printer' : 'Bluetooth Printer'}</span>
-                                    </>
-                                  )}
-                                </button>
-                              )}
-                            </>
-                          )}
-
-                          {printerErrorMsg && (
-                            <div className="p-2.5 bg-rose-50 border border-rose-100 text-rose-800 rounded-lg text-[10.5px] font-medium flex items-center gap-1.5 animate-pulse">
-                              <AlertCircle className="h-3.5 w-3.5 shrink-0 text-rose-500" />
-                              <span className="truncate">{printerErrorMsg}</span>
-                            </div>
-                          )}
-
-                          <div className="pt-1.5">
-                            <label className="block text-[9.5px] font-bold text-slate-500 mb-1 uppercase tracking-wider">Printer Language</label>
-                            <select
-                              value={printerLanguage}
-                              onChange={(e) => setPrinterLanguage(e.target.value as PrinterLanguage)}
-                              className="w-full bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold px-2.5 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer text-slate-700"
-                            >
-                              <option value="TSPL">TSPL (Munbyn, Xprinter, Rollo, TSC)</option>
-                              <option value="ZPL">ZPL (Zebra Printers)</option>
-                            </select>
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="space-y-3">
-                        <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Label Code Formats</h4>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <label className="block text-[9.5px] font-bold text-slate-500 mb-1">2D Format</label>
-                            <select
-                              value={print2DFormat}
-                              onChange={(e) => setPrint2DFormat(e.target.value as CodeType)}
-                              className="w-full bg-white border border-slate-200 rounded-xl text-xs font-semibold px-2.5 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer text-slate-700"
-                            >
-                              <option value="qrcode">QR Code</option>
-                              <option value="datamatrix">Data Matrix</option>
-                              <option value="pdf417">PDF417</option>
-                            </select>
-                          </div>
-                          <div>
-                            <label className="block text-[9.5px] font-bold text-slate-500 mb-1">1D Format</label>
-                            <select
-                              value={print1DFormat}
-                              onChange={(e) => setPrint1DFormat(e.target.value as CodeType)}
-                              className="w-full bg-white border border-slate-200 rounded-xl text-xs font-semibold px-2.5 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer text-slate-700"
-                            >
-                              <option value="code128">Code 128</option>
-                              <option value="code39">Code 39</option>
-                              <option value="ean13">EAN-13 (Numeric)</option>
-                              <option value="upca">UPC-A (Numeric)</option>
-                            </select>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Action buttons footer */}
-                    <div className="flex justify-between items-center pt-3 border-t border-slate-200/60 print:hidden">
-                      <button 
-                        type="button"
-                        onClick={() => {
-                          navigator.clipboard.writeText(savedQrData.id);
-                          alert('Label ID code copied to clipboard!');
-                        }}
-                        className="text-slate-400 hover:text-slate-650 transition-all font-semibold cursor-pointer text-xs"
-                      >
-                        Copy Reference ID
-                      </button>
-                      <button 
-                        type="button"
-                        disabled={printerMode !== 'browser' && printerStatus !== 'connected'}
-                        onClick={handlePrint}
-                        className={`inline-flex items-center gap-1.5 px-4.5 py-2 text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-md border-b ${
-                          (printerMode !== 'browser' && printerStatus !== 'connected')
-                            ? 'bg-slate-300 border-slate-400 cursor-not-allowed shadow-none'
-                            : 'bg-indigo-650 hover:bg-indigo-750 shadow-indigo-150 border-b border-indigo-850'
-                        }`}
-                      >
-                        <Printer className="h-3.5 w-3.5" />
-                        <span>Print Sticker</span>
-                      </button>
-                    </div>
-                  </div>
-                )}
+                <DirectPrinterPanel
+                  savedQrData={savedQrData}
+                  sessionCode={sessionCode}
+                  connectionStatus={connectionStatus}
+                  print2DFormat={print2DFormat}
+                  setPrint2DFormat={setPrint2DFormat}
+                  print1DFormat={print1DFormat}
+                  setPrint1DFormat={setPrint1DFormat}
+                />
               </div>
 
             </div>
@@ -1437,8 +873,9 @@ function TaggingPageContent() {
                   <p className="text-amber-700 font-bold uppercase tracking-wider text-[10px] flex items-center gap-1.5">
                     <Compass className="h-3.5 w-3.5 text-amber-500" /> Sandbox Actions
                   </p>
-                  <p className="text-slate-500 text-[11px] leading-relaxed">Mimic the mobile photographer uploading a fabric sample to test the live workspace sync:</p>
+                  <p className="text-slate-555 text-[11px] leading-relaxed">Mimic the mobile photographer uploading a fabric sample to test the live workspace sync:</p>
                   <button 
+                    type="button"
                     onClick={testTriggerMockCapture}
                     className="w-full mt-2 inline-flex items-center justify-center gap-1.5 py-3 px-4 bg-indigo-650 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-indigo-100 cursor-pointer border-b-2 border-indigo-805"
                   >
@@ -1450,56 +887,11 @@ function TaggingPageContent() {
           )}
 
           {/* COMPLETED FEED HISTORY TRACK: Bottom audit shelf */}
-          <div className="border-t border-slate-200 bg-white p-6 shrink-0 mt-auto shadow-xs">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-              <div className="flex items-center gap-2">
-                <ClipboardCheck className="h-4 w-4 text-indigo-650" />
-                <h4 className="text-xs uppercase tracking-widest font-bold text-slate-500">Digitization Log</h4>
-              </div>
-              
-              {/* Search Box */}
-              <div className="relative w-full sm:w-64">
-                <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-slate-400">
-                  <Search className="h-3.5 w-3.5" />
-                </div>
-                <input
-                  type="text"
-                  placeholder="Search labeled fabrics..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg focus:ring-1 focus:ring-indigo-500 focus:outline-none text-xs text-slate-900 font-medium"
-                />
-              </div>
-            </div>
-
-            {filteredCompletedFabrics.length === 0 ? (
-              <div className="text-center py-8 border border-dashed border-slate-200 rounded-xl bg-slate-50/50">
-                <p className="text-xs text-slate-400 font-semibold">
-                  {searchQuery ? 'No match found for search query.' : 'No items archived in this session.'}
-                </p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                {filteredCompletedFabrics.slice(0, 6).map((item) => (
-                  <div key={item.id} className="bg-slate-50/60 border border-slate-200/80 p-3 rounded-xl flex items-center gap-3">
-                    <div className="h-10 w-10 overflow-hidden rounded-lg bg-slate-100 shrink-0 border border-slate-200">
-                      <img src={item.image_url} alt="Historic log preview" className="object-cover h-full w-full" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs font-bold text-slate-800 truncate">{item.name}</p>
-                      <p className="text-[9px] font-mono text-slate-400 tracking-wider truncate mt-0.5">{item.qr_code_id}</p>
-                      {item.tagged_by_email && (
-                        <p className="text-[8px] text-slate-450 truncate font-bold mt-0.5">By: {item.tagged_by_email}</p>
-                      )}
-                    </div>
-                    <div className="bg-white p-0.5 rounded-md shrink-0 border border-slate-200">
-                      <QRCodeSVG value={item.qr_code_id || ''} size={28} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          <DigitizationHistory
+            completedFabrics={completedFabrics}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+          />
 
         </div>
       </div>
@@ -1545,7 +937,7 @@ export default function TaggingPage() {
       <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="h-8 w-8 text-indigo-650 animate-spin" />
-          <span className="text-xs text-slate-500 font-medium">Initializing labeling desk...</span>
+          <span className="text-xs text-slate-550 font-medium">Initializing labeling desk...</span>
         </div>
       </div>
     }>

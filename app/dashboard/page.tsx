@@ -24,6 +24,7 @@ interface Session {
 }
 
 interface Connection {
+  id?: string;
   session_id: string;
   user_id: string;
   user_email: string;
@@ -311,21 +312,26 @@ export default function DashboardPage() {
 
               if (payload.eventType === 'INSERT') {
                 setSessionConnections(prev => {
-                  if (prev.some(c => c.user_id === newConn.user_id && c.session_id === newConn.session_id)) {
-                    // Update connection if already present
-                    return prev.map(c => (c.user_id === newConn.user_id && c.session_id === newConn.session_id) ? newConn : c);
+                  if (prev.some(c => c.id === newConn.id || (c.user_id === newConn.user_id && c.session_id === newConn.session_id))) {
+                    return prev.map(c => (c.id === newConn.id || (c.user_id === newConn.user_id && c.session_id === newConn.session_id)) ? newConn : c);
                   }
                   return [...prev, newConn];
                 });
               } else if (payload.eventType === 'UPDATE') {
                 setSessionConnections(prev => {
-                  if (prev.some(c => c.user_id === newConn.user_id && c.session_id === newConn.session_id)) {
-                    return prev.map(c => (c.user_id === newConn.user_id && c.session_id === newConn.session_id) ? newConn : c);
+                  if (prev.some(c => c.id === newConn.id || (c.user_id === newConn.user_id && c.session_id === newConn.session_id))) {
+                    return prev.map(c => (c.id === newConn.id || (c.user_id === newConn.user_id && c.session_id === newConn.session_id)) ? newConn : c);
                   }
                   return [...prev, newConn];
                 });
               } else if (payload.eventType === 'DELETE') {
-                setSessionConnections(prev => prev.filter(c => !(c.user_id === oldConn.user_id && c.session_id === oldConn.session_id)));
+                const oldConn = payload.old as Connection;
+                setSessionConnections(prev => prev.filter(c => {
+                  if (oldConn.id && c.id) {
+                    return c.id !== oldConn.id;
+                  }
+                  return !(c.user_id === oldConn.user_id && c.session_id === oldConn.session_id);
+                }));
               }
             }
           )
@@ -648,10 +654,10 @@ export default function DashboardPage() {
     };
   };
 
-  // Determine if active session already has a tagger connected (excluding current user)
+  // Determine if active session already has a tagger connected
   const isTaggerOccupied = (sessId: string) => {
     return sessionConnections.some(
-      c => c.session_id === sessId && c.role === 'tagger' && c.user_id !== (user?.id || 'sandbox')
+      c => c.session_id === sessId && c.role === 'tagger'
     );
   };
 
