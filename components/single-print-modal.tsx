@@ -79,8 +79,8 @@ export default function SinglePrintModal({
     : 'Textile Catalog';
 
   return (
-    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-40 print:relative print:bg-white print:p-0 print:inset-auto animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200 print:border-none print:shadow-none print:rounded-none">
+    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-40 print:relative print:bg-white print:p-0 print:inset-auto print:block animate-in fade-in duration-200">
+      <div className="bg-white rounded-3xl border border-slate-200 shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200 print:border-none print:shadow-none print:rounded-none print:overflow-visible print:max-w-none">
         
         {/* Modal header */}
         <div className="px-6 py-4.5 border-b border-slate-150 flex items-center justify-between print:hidden">
@@ -97,11 +97,11 @@ export default function SinglePrintModal({
         </div>
 
         {/* Sticker Preview Stage */}
-        <div className="p-6 flex items-center justify-center bg-slate-50/50 print:bg-white print:p-0">
+        <div className="p-6 flex items-center justify-center bg-slate-50/50 print:bg-white print:p-0 print:block">
           <div
             id="thermal-sticker-label"
-            className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden flex flex-col print:border-none print:shadow-none print:rounded-none print:m-0"
-            style={{ width: 288, height: 172 }}
+            className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden flex flex-col print:border-none print:shadow-none print:rounded-none print:m-0 print:overflow-visible"
+            style={{ width: 288, height: 172, breakInside: 'avoid', pageBreakInside: 'avoid' }}
           >
             {/* Header: name + ref */}
             <div className={`${isMinimal ? 'px-4 pt-3 pb-1' : 'px-3 pt-2.5 pb-1'} text-center w-full min-w-0 shrink-0`}>

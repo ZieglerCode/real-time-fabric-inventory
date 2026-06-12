@@ -114,8 +114,8 @@ export default function BulkPrintModal({
   const isMinimal = bulkLabelLayout === 'minimal';
 
   return (
-    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-40 print:relative print:bg-white print:p-0 print:inset-auto animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200 print:border-none print:shadow-none print:rounded-none print:max-h-none print:w-full">
+    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-40 print:relative print:bg-white print:p-0 print:inset-auto print:block animate-in fade-in duration-200">
+      <div className="bg-white rounded-3xl border border-slate-200 shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200 print:border-none print:shadow-none print:rounded-none print:max-h-none print:w-full print:overflow-visible">
         
         {/* Modal Header */}
         <div className="px-6 py-4.5 border-b border-slate-155 flex items-center justify-between shrink-0 print:hidden">
@@ -484,7 +484,7 @@ export default function BulkPrintModal({
                         isMinimal ? 'justify-center p-4 gap-2' : 'justify-between p-3'
                       }`}
                       style={{
-                        transform: `scale(${bulkScale})`,
+                        transform: bulkScale !== 1 ? `scale(${bulkScale})` : undefined,
                         transformOrigin: 'top center',
                         pageBreakInside: 'avoid',
                         breakInside: 'avoid',

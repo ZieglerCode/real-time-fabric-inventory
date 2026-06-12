@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback, Suspense } from 'react';
-import { Camera, CheckCircle2, RefreshCw, AlertCircle, ArrowLeft, Loader2, Compass, Ban, User, ShieldAlert } from 'lucide-react';
+import { Camera, CheckCircle2, RefreshCw, AlertCircle, ArrowLeft, Loader2, Compass, Ban, User, ShieldAlert, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
@@ -17,6 +17,7 @@ interface Fabric {
   rejection_reason?: string | null;
   discarded_at?: string | null;
   created_at: string;
+  created_by?: string | null;
   created_by_email?: string | null;
   tagged_by_email?: string | null;
   session_id?: string | null;
@@ -53,6 +54,10 @@ function CapturePageContent() {
   // Stack list states
   const [sessionFabrics, setSessionFabrics] = useState<Fabric[]>([]);
   const [loadingFabrics, setLoadingFabrics] = useState<boolean>(true);
+
+  // Delete confirmation state
+  const [deletingFabricId, setDeletingFabricId] = useState<string | null>(null);
+  const [deleteInProgress, setDeleteInProgress] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -451,6 +456,40 @@ function CapturePageContent() {
     }
   };
 
+  const handleDeleteFabric = async (fabric: Fabric) => {
+    setDeleteInProgress(true);
+    try {
+      if (isConfigured) {
+        // Remove image from storage (extract path after bucket name)
+        try {
+          const url = new URL(fabric.image_url);
+          const match = url.pathname.match(/\/fabric-images\/(.+)$/);
+          if (match) {
+            await supabase.storage.from('fabric-images').remove([match[1]]);
+          }
+        } catch {
+          // Non-critical — continue even if image removal fails
+        }
+        const { error } = await supabase.from('fabrics').delete().eq('id', fabric.id);
+        if (error) throw error;
+      } else {
+        const queue = JSON.parse(localStorage.getItem('fabric_local_queue') || '[]');
+        const completed = JSON.parse(localStorage.getItem('fabric_local_completed') || '[]');
+        localStorage.setItem('fabric_local_queue', JSON.stringify(queue.filter((f: any) => f.id !== fabric.id)));
+        localStorage.setItem('fabric_local_completed', JSON.stringify(completed.filter((f: any) => f.id !== fabric.id)));
+        window.dispatchEvent(new Event('storage'));
+      }
+      setSessionFabrics((prev) => prev.filter((f) => f.id !== fabric.id));
+      setDeletingFabricId(null);
+    } catch (err: any) {
+      console.error('Delete failed:', err);
+      setErrorText(err?.message || 'Failed to delete scan.');
+      setDeletingFabricId(null);
+    } finally {
+      setDeleteInProgress(false);
+    }
+  };
+
   // 1. Loading States
   if (authLoading || sessionResolving) {
     return (
@@ -708,9 +747,9 @@ function CapturePageContent() {
                     >
                       {/* Photo Thumbnail */}
                       <div className="h-16 w-16 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 shrink-0 relative">
-                        <img 
-                          src={item.image_url} 
-                          alt="Captured fabric" 
+                        <img
+                          src={item.image_url}
+                          alt="Captured fabric"
                           className="object-cover h-full w-full"
                         />
                       </div>
@@ -749,15 +788,25 @@ function CapturePageContent() {
                         </div>
                       </div>
 
+                      {/* Delete button — only for own scans */}
+                      {(!isConfigured || !item.created_by || item.created_by === user?.id) && (
+                        <button
+                          onClick={() => setDeletingFabricId(item.id)}
+                          className="shrink-0 p-1.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                          title="Delete scan"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+
                       {/* Rejection Overlays or Direct Actions */}
-                      {item.status === 'discarded' && (
+                      {item.status === 'discarded' && deletingFabricId !== item.id && (
                         <div className="absolute inset-x-0 bottom-0 bg-rose-600/95 text-white text-[10px] font-medium p-2 rounded-b-2xl flex items-center justify-between gap-3 animate-in slide-in-from-bottom duration-200">
                           <span className="truncate flex-1">
                             Reason: <strong>{item.rejection_reason || 'Photo glare / blurry'}</strong>
                           </span>
                           <button
                             onClick={() => {
-                              // Retake now trigger
                               triggerCamera();
                             }}
                             className="bg-white text-rose-650 hover:bg-rose-50 font-bold px-2 py-1 rounded-lg shrink-0 border border-transparent shadow-xs transition-colors"
@@ -766,6 +815,47 @@ function CapturePageContent() {
                           </button>
                         </div>
                       )}
+
+                      {/* Delete confirmation overlay */}
+                      <AnimatePresence>
+                        {deletingFabricId === item.id && (
+                          <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 0.15 }}
+                            className="absolute inset-0 bg-slate-900/80 backdrop-blur-[3px] rounded-2xl flex flex-col items-center justify-center gap-3 px-4"
+                          >
+                            {deleteInProgress ? (
+                              <Loader2 className="h-5 w-5 text-white animate-spin" />
+                            ) : (
+                              <>
+                                <p className="text-[11px] font-bold text-white text-center leading-tight">
+                                  Delete this scan?
+                                </p>
+                                <p className="text-[9.5px] text-slate-300 text-center leading-snug -mt-1 max-w-[180px]">
+                                  {item.name || 'This photo'} will be permanently removed.
+                                </p>
+                                <div className="flex gap-2 w-full">
+                                  <button
+                                    onClick={() => setDeletingFabricId(null)}
+                                    className="flex-1 py-1.5 bg-white/15 hover:bg-white/25 text-white text-[10px] font-bold rounded-lg transition-colors cursor-pointer"
+                                  >
+                                    Cancel
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteFabric(item)}
+                                    className="flex-1 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-bold rounded-lg transition-colors cursor-pointer flex items-center justify-center gap-1"
+                                  >
+                                    <Trash2 className="h-3 w-3" />
+                                    Delete
+                                  </button>
+                                </div>
+                              </>
+                            )}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </motion.div>
                   );
                 })}

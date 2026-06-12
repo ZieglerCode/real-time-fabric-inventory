@@ -16,3 +16,20 @@
 .animate-panel {
   animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
+
+@media print {
+  /* Single label: prevent page breaks inside, allow flex children to be visible */
+  #thermal-sticker-label {
+    overflow: visible !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Bulk grid cards: reset transform (scale() breaks break-inside calculation)
+     and reinforce break-inside so title + code stay together on the same page */
+  .bulk-grid-label-card {
+    transform: none !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+}
