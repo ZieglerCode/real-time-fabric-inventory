@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import bwipjs from 'bwip-js';
+import bwipjs from 'bwip-js/browser';
 
 export type CodeType = 'qrcode' | 'datamatrix' | 'code128' | 'code39' | 'ean13' | 'upca' | 'pdf417';
 
@@ -77,8 +77,10 @@ export default function ScannableCode({
         textxalign: 'center',
       });
     } catch (e: any) {
-      console.warn('Barcode rendering error:', e);
-      setError(e.message || 'Error rendering');
+      // bwip-js throws plain strings, not Error objects
+      const msg = typeof e === 'string' ? e : (e?.message || 'Render error');
+      console.warn('Barcode rendering error:', msg);
+      setError(msg);
     }
   }, [value, type, scale, height, includeText]);
 
