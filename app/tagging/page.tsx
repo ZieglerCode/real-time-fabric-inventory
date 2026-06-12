@@ -36,6 +36,159 @@ function TaggingPageContent() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [sessionResolving, setSessionResolving] = useState(true);
   const [errorText, setErrorText] = useState('');
+  const [taggerSeatOccupied, setTaggerSeatOccupied] = useState(false);
+  const [checkingSeat, setCheckingSeat] = useState(true);
+
+  // Heartbeat tracking & slot occupancy check for active tagger connection
+  useEffect(() => {
+    if (!sessionId) return;
+
+    setCheckingSeat(true);
+    setTaggerSeatOccupied(false);
+
+    const checkAndSendHeartbeat = async () => {
+      const timeThreshold = new Date(Date.now() - 30 * 1000).toISOString();
+      const currentUserId = user?.id || 'sandbox-tagger';
+
+      if (isConfigured) {
+        if (!user) {
+          setCheckingSeat(false);
+          return;
+        }
+        try {
+          // Check if there is already an active tagger that is NOT us
+          const { data, error: checkErr } = await supabase
+            .from('session_connections')
+            .select('user_id')
+            .eq('session_id', sessionId)
+            .eq('role', 'tagger')
+            .neq('user_id', currentUserId)
+            .gt('last_seen_at', timeThreshold);
+
+          if (checkErr) throw checkErr;
+
+          if (data && data.length > 0) {
+            setTaggerSeatOccupied(true);
+            setCheckingSeat(false);
+            return;
+          }
+
+          // Slot is free, register/upsert our heartbeat
+          const { error: upsertErr } = await supabase
+            .from('session_connections')
+            .upsert({
+              session_id: sessionId,
+              user_id: currentUserId,
+              user_email: user.email || 'unknown',
+              role: 'tagger',
+              last_seen_at: new Date().toISOString()
+            }, {
+              onConflict: 'session_id,user_id'
+            });
+
+          if (upsertErr) throw upsertErr;
+          setTaggerSeatOccupied(false);
+        } catch (err) {
+          console.error('Failed checking/sending tagger database heartbeat:', err);
+        } finally {
+          setCheckingSeat(false);
+        }
+      } else {
+        // Sandbox mode
+        try {
+          const localConnections = JSON.parse(localStorage.getItem('fabric_local_connections') || '[]');
+          const nowMs = Date.now();
+          
+          // Check if another active tagger exists
+          const otherTaggerExists = localConnections.some(
+            (c: any) => 
+              c.session_id === sessionId && 
+              c.role === 'tagger' && 
+              c.user_id !== currentUserId && 
+              new Date(c.last_seen_at).getTime() > nowMs - 30 * 1000
+          );
+
+          if (otherTaggerExists) {
+            setTaggerSeatOccupied(true);
+            setCheckingSeat(false);
+            return;
+          }
+
+          // Register/upsert heartbeat
+          const nowStr = new Date().toISOString();
+          const existingIdx = localConnections.findIndex(
+            (c: any) => c.session_id === sessionId && c.user_id === currentUserId
+          );
+
+          if (existingIdx > -1) {
+            localConnections[existingIdx].last_seen_at = nowStr;
+            localConnections[existingIdx].role = 'tagger';
+          } else {
+            localConnections.push({
+              session_id: sessionId,
+              user_id: currentUserId,
+              user_email: 'tagger@company.com',
+              role: 'tagger',
+              last_seen_at: nowStr
+            });
+          }
+
+          localStorage.setItem('fabric_local_connections', JSON.stringify(localConnections));
+          window.dispatchEvent(new Event('storage'));
+          setTaggerSeatOccupied(false);
+        } catch (err) {
+          console.error('Failed checking/sending tagger local heartbeat:', err);
+        } finally {
+          setCheckingSeat(false);
+        }
+      }
+    };
+
+    const cleanupConnection = async () => {
+      const currentUserId = user?.id || 'sandbox-tagger';
+      if (isConfigured) {
+        if (!user) return;
+        try {
+          await supabase
+            .from('session_connections')
+            .delete()
+            .eq('session_id', sessionId)
+            .eq('user_id', currentUserId);
+        } catch (err) {
+          console.error('Failed to delete tagger database connection:', err);
+        }
+      } else {
+        try {
+          const localConnections = JSON.parse(localStorage.getItem('fabric_local_connections') || '[]');
+          const filtered = localConnections.filter(
+            (c: any) => !(c.session_id === sessionId && c.user_id === currentUserId)
+          );
+          localStorage.setItem('fabric_local_connections', JSON.stringify(filtered));
+          window.dispatchEvent(new Event('storage'));
+        } catch (err) {
+          console.error('Failed to delete tagger local connection:', err);
+        }
+      }
+    };
+
+    // Run check immediately
+    checkAndSendHeartbeat();
+
+    // Run check and send heartbeat every 15 seconds
+    const intervalId = setInterval(checkAndSendHeartbeat, 15000);
+
+    // Unload cleanup
+    const handleUnload = () => {
+      cleanupConnection();
+    };
+    window.addEventListener('beforeunload', handleUnload);
+
+    return () => {
+      clearInterval(intervalId);
+      window.removeEventListener('beforeunload', handleUnload);
+      cleanupConnection();
+    };
+  }, [sessionId, user, isConfigured]);
 
   const [fabrics, setFabrics] = useState<Fabric[]>([]);
   const [completedFabrics, setCompletedFabrics] = useState<Fabric[]>([]);
@@ -435,7 +588,7 @@ function TaggingPageContent() {
   });
 
   // 1. Loading States
-  if (authLoading || sessionResolving) {
+  if (authLoading || sessionResolving || checkingSeat) {
     return (
       <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
@@ -446,7 +599,35 @@ function TaggingPageContent() {
     );
   }
 
-  // 2. Error State: No session or expired session
+  // 2. Seat Occupancy Check
+  if (taggerSeatOccupied) {
+    return (
+      <main className="min-h-screen bg-[#F8FAFC] text-slate-800 flex flex-col justify-center items-center p-6 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-150 rounded-full blur-3xl opacity-20 pointer-events-none" />
+        
+        <div className="w-full max-w-md bg-white border border-slate-200/80 rounded-3xl p-8 shadow-sm text-center space-y-6 relative z-10">
+          <div className="inline-flex h-14 w-14 rounded-2xl bg-amber-50 border border-amber-100 items-center justify-center text-amber-600 mx-auto">
+            <ShieldAlert className="h-7 w-7" />
+          </div>
+          <h2 className="text-xl font-bold text-slate-900">Desktop Tagger Seat Occupied</h2>
+          <p className="text-sm text-slate-500 max-w-xs mx-auto leading-relaxed">
+            Only one active Desktop Tagger is allowed per cataloging lobby. Another user has already joined as tagger.
+          </p>
+          <div className="pt-2">
+            <Link
+              href="/dashboard"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-650 hover:bg-indigo-750 text-white rounded-xl font-bold shadow-md shadow-indigo-150 transition-all cursor-pointer border-b-2 border-indigo-805"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              <span>Back to Control Center</span>
+            </Link>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  // 3. Error State: No session or expired session
   if (!sessionCode || !sessionId) {
     return (
       <main className="min-h-screen bg-[#F8FAFC] text-slate-800 flex flex-col justify-center items-center p-6 relative overflow-hidden">

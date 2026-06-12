@@ -1,13 +1,41 @@
--- 1. CREATE SESSIONS LOBBY TABLE
+-- 1. CREATE TEAMS & MEMBERS
+create table if not exists teams (
+  id uuid default gen_random_uuid() primary key,
+  name text not null,
+  invite_code text not null unique,
+  created_by uuid references auth.users(id),
+  created_at timestamp with time zone default now()
+);
+
+create table if not exists team_members (
+  team_id uuid references teams(id) on delete cascade,
+  user_id uuid references auth.users(id) on delete cascade,
+  role text default 'member',
+  primary key (team_id, user_id)
+);
+
+-- 2. CREATE SESSIONS LOBBY TABLE
 create table if not exists sessions (
   id uuid default gen_random_uuid() primary key,
   code text not null unique,
+  team_id uuid references teams(id) on delete cascade,
   created_by uuid references auth.users(id) default auth.uid(),
   status text default 'active', -- 'active' or 'completed'
   created_at timestamp with time zone default now()
 );
 
--- 2. UPGRADE FABRICS TABLE
+-- 3. CREATE LOBBY CONNECTIONS (PRESENCE TRACKING)
+create table if not exists session_connections (
+  id uuid default gen_random_uuid() primary key,
+  session_id uuid references sessions(id) on delete cascade,
+  user_id uuid references auth.users(id) on delete cascade,
+  user_email text not null,
+  role text not null, -- 'photographer', 'tagger'
+  last_seen_at timestamp with time zone default now(),
+  unique (session_id, user_id)
+);
+
+-- 4. UPGRADE FABRICS TABLE
 alter table fabrics 
   add column if not exists created_by uuid references auth.users(id) default auth.uid(),
   add column if not exists tagged_by uuid references auth.users(id),
@@ -15,24 +43,28 @@ alter table fabrics
   add column if not exists tagged_by_email text,
   add column if not exists session_id uuid references sessions(id) on delete cascade;
 
--- 3. RESET RLS POLICIES FOR SESSIONS
+-- 5. ENABLE RLS & DEFINE POLICIES
+alter table teams enable row level security;
+alter table team_members enable row level security;
 alter table sessions enable row level security;
-
-drop policy if exists "Allow authenticated users to manage sessions" on sessions;
-
-create policy "Allow authenticated users to manage sessions"
-  on sessions for all
-  to authenticated
-  using (true)
-  with check (true);
-
--- 4. RESET RLS POLICIES FOR FABRICS
 alter table fabrics enable row level security;
+alter table session_connections enable row level security;
 
+-- Drop existing policies to prevent conflicts
+drop policy if exists "Allow authenticated users to manage teams" on teams;
+drop policy if exists "Allow authenticated users to manage team_members" on team_members;
+drop policy if exists "Allow authenticated users to manage sessions" on sessions;
+drop policy if exists "Allow authenticated users to manage session_connections" on session_connections;
 drop policy if exists "Allow all public operations for fabrics" on fabrics;
 drop policy if exists "Allow authenticated users to read fabrics" on fabrics;
 drop policy if exists "Allow authenticated users to insert fabrics" on fabrics;
 drop policy if exists "Allow authenticated users to update fabrics" on fabrics;
+
+-- Create secure policies
+create policy "Allow authenticated users to manage teams" on teams for all to authenticated using (true) with check (true);
+create policy "Allow authenticated users to manage team_members" on team_members for all to authenticated using (true) with check (true);
+create policy "Allow authenticated users to manage sessions" on sessions for all to authenticated using (true) with check (true);
+create policy "Allow authenticated users to manage session_connections" on session_connections for all to authenticated using (true) with check (true);
 
 create policy "Allow authenticated users to read fabrics"
   on fabrics for select
@@ -50,7 +82,7 @@ create policy "Allow authenticated users to update fabrics"
   using (true)
   with check (true);
 
--- 5. RESET STORAGE POLICIES FOR FABRIC-IMAGES BUCKET
+-- 6. RESET STORAGE POLICIES FOR FABRIC-IMAGES BUCKET
 insert into storage.buckets (id, name, public)
 values ('fabric-images', 'fabric-images', true)
 on conflict (id) do nothing;

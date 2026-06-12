@@ -85,6 +85,99 @@ function CapturePageContent() {
       setCapturedCount(saved ? parseInt(saved, 10) : 0);
     }
   }, [sessionCode]);
+  // Heartbeat tracking for active photographer connection
+  useEffect(() => {
+    if (!sessionId) return;
+
+    const performHeartbeat = async () => {
+      if (isConfigured) {
+        if (!user) return;
+        try {
+          await supabase
+            .from('session_connections')
+            .upsert({
+              session_id: sessionId,
+              user_id: user.id,
+              user_email: user.email || 'unknown',
+              role: 'photographer',
+              last_seen_at: new Date().toISOString()
+            }, {
+              onConflict: 'session_id,user_id'
+            });
+        } catch (err) {
+          console.error('Failed to send database heartbeat:', err);
+        }
+      } else {
+        try {
+          const localConnections = JSON.parse(localStorage.getItem('fabric_local_connections') || '[]');
+          const nowStr = new Date().toISOString();
+          const existingIdx = localConnections.findIndex(
+            (c: any) => c.session_id === sessionId && c.user_id === 'sandbox-photographer'
+          );
+          if (existingIdx > -1) {
+            localConnections[existingIdx].last_seen_at = nowStr;
+            localConnections[existingIdx].role = 'photographer';
+          } else {
+            localConnections.push({
+              session_id: sessionId,
+              user_id: 'sandbox-photographer',
+              user_email: 'photographer@company.com',
+              role: 'photographer',
+              last_seen_at: nowStr
+            });
+          }
+          localStorage.setItem('fabric_local_connections', JSON.stringify(localConnections));
+          window.dispatchEvent(new Event('storage'));
+        } catch (err) {
+          console.error('Failed to send local heartbeat:', err);
+        }
+      }
+    };
+
+    const cleanupConnection = async () => {
+      if (isConfigured) {
+        if (!user) return;
+        try {
+          await supabase
+            .from('session_connections')
+            .delete()
+            .eq('session_id', sessionId)
+            .eq('user_id', user.id);
+        } catch (err) {
+          console.error('Failed to delete database connection:', err);
+        }
+      } else {
+        try {
+          const localConnections = JSON.parse(localStorage.getItem('fabric_local_connections') || '[]');
+          const filtered = localConnections.filter(
+            (c: any) => !(c.session_id === sessionId && c.user_id === 'sandbox-photographer')
+          );
+          localStorage.setItem('fabric_local_connections', JSON.stringify(filtered));
+          window.dispatchEvent(new Event('storage'));
+        } catch (err) {
+          console.error('Failed to delete local connection:', err);
+        }
+      }
+    };
+
+    // Run heartbeat immediately
+    performHeartbeat();
+
+    // Set up interval
+    const intervalId = setInterval(performHeartbeat, 15000);
+
+    // Unload handler for browser tab closing
+    const handleUnload = () => {
+      cleanupConnection();
+    };
+    window.addEventListener('beforeunload', handleUnload);
+
+    return () => {
+      clearInterval(intervalId);
+      window.removeEventListener('beforeunload', handleUnload);
+      cleanupConnection();
+    };
+  }, [sessionId, user, isConfigured]);
 
   // Revoke preview URL on unmount
   useEffect(() => {
