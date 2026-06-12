@@ -63,7 +63,23 @@ drop policy if exists "Allow authenticated users to update fabrics" on fabrics;
 -- Create secure policies
 create policy "Allow authenticated users to manage teams" on teams for all to authenticated using (true) with check (true);
 create policy "Allow authenticated users to manage team_members" on team_members for all to authenticated using (true) with check (true);
-create policy "Allow authenticated users to manage sessions" on sessions for all to authenticated using (true) with check (true);
+create policy "Allow authenticated users to manage sessions"
+  on sessions for all
+  to authenticated
+  using (
+    exists (
+      select 1 from team_members
+      where team_members.team_id = sessions.team_id
+        and team_members.user_id = auth.uid()
+    )
+  )
+  with check (
+    exists (
+      select 1 from team_members
+      where team_members.team_id = sessions.team_id
+        and team_members.user_id = auth.uid()
+    )
+  );
 create policy "Allow authenticated users to manage session_connections" on session_connections for all to authenticated using (true) with check (true);
 
 create policy "Allow authenticated users to read fabrics"

@@ -44,14 +44,27 @@ function CapturePageContent() {
         if (isConfigured) {
           const { data, error } = await supabase
             .from('sessions')
-            .select('id')
+            .select('id, team_id')
             .eq('code', sessionCode.toUpperCase())
             .eq('status', 'active')
             .maybeSingle();
 
           if (error) throw error;
           if (data) {
-            setSessionId(data.id);
+            // Verify user belongs to the hosting team
+            const { data: membership, error: memberErr } = await supabase
+              .from('team_members')
+              .select('team_id')
+              .eq('team_id', data.team_id)
+              .eq('user_id', user?.id)
+              .maybeSingle();
+
+            if (memberErr) throw memberErr;
+            if (membership) {
+              setSessionId(data.id);
+            } else {
+              setErrorText(`You do not belong to the team hosting this session. Please join their team first.`);
+            }
           } else {
             setErrorText(`Active session "${sessionCode}" not found.`);
           }
@@ -60,7 +73,14 @@ function CapturePageContent() {
           const mockSessions = JSON.parse(localStorage.getItem('fabric_local_sessions') || '[]');
           const matched = mockSessions.find((s: any) => s.code === sessionCode.toUpperCase() && s.status === 'active');
           if (matched) {
-            setSessionId(matched.id);
+            // Check membership in sandbox
+            const localMembers = JSON.parse(localStorage.getItem('fabric_local_team_members') || '[]');
+            const isMember = localMembers.some((m: any) => m.team_id === matched.team_id && m.user_id === 'sandbox');
+            if (isMember) {
+              setSessionId(matched.id);
+            } else {
+              setErrorText(`You do not belong to the team hosting this session.`);
+            }
           } else {
             setErrorText(`Active session "${sessionCode}" not found in sandbox.`);
           }
@@ -76,7 +96,7 @@ function CapturePageContent() {
     if (!authLoading) {
       resolveSession();
     }
-  }, [sessionCode, authLoading, isConfigured]);
+  }, [sessionCode, authLoading, isConfigured, user]);
 
   // Load session specific count
   useEffect(() => {
