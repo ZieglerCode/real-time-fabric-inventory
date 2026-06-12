@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Camera, Laptop, LogOut, User, Layers, History, QrCode, Plus, UserPlus, ArrowRight, Share2, Clipboard, CheckCircle2, Loader2, Compass, AlertCircle, RefreshCw, Users, ShieldAlert } from 'lucide-react';
@@ -39,6 +39,12 @@ export default function DashboardPage() {
   const [activeSessions, setActiveSessions] = useState<Session[]>([]);
   const [sessionConnections, setSessionConnections] = useState<Connection[]>([]);
   const [dashboardLoading, setDashboardLoading] = useState(true);
+
+  // Track teams in a ref to avoid stale closures inside polling intervals
+  const teamsRef = useRef<Team[]>([]);
+  useEffect(() => {
+    teamsRef.current = teams;
+  }, [teams]);
   
   // Selected state
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
@@ -170,13 +176,79 @@ export default function DashboardPage() {
     }
   };
 
+  const pollActiveLobbies = async () => {
+    if (!isConfigured) {
+      // Offline sandbox mock
+      const localTeams: Team[] = JSON.parse(localStorage.getItem('fabric_local_teams') || '[]');
+      const localMembers = JSON.parse(localStorage.getItem('fabric_local_team_members') || '[]');
+      const localSessions: Session[] = JSON.parse(localStorage.getItem('fabric_local_sessions') || '[]');
+      const localConnections: Connection[] = JSON.parse(localStorage.getItem('fabric_local_connections') || '[]');
+
+      const joinedTeamIds = localMembers
+        .filter((m: any) => m.user_id === 'sandbox')
+        .map((m: any) => m.team_id);
+
+      const activeLobbies = localSessions
+        .filter(s => s.status === 'active' && joinedTeamIds.includes(s.team_id))
+        .map(s => ({
+          ...s,
+          team_name: localTeams.find(t => t.id === s.team_id)?.name || 'Local Team'
+        }));
+      setActiveSessions(activeLobbies);
+
+      const now = Date.now();
+      const activeConns = localConnections.filter(c => new Date(c.last_seen_at).getTime() > now - 30 * 1000);
+      setSessionConnections(activeConns);
+      return;
+    }
+
+    if (!user) return;
+
+    try {
+      const currentTeams = teamsRef.current;
+      const teamIds = currentTeams.map(t => t.id);
+      if (teamIds.length === 0) return;
+
+      // 1. Fetch active sessions for those teams
+      const { data: sessionsData, error: sessionsErr } = await supabase
+        .from('sessions')
+        .select('*')
+        .in('team_id', teamIds)
+        .eq('status', 'active')
+        .order('created_at', { ascending: false });
+
+      if (sessionsErr) throw sessionsErr;
+
+      const hydratedSessions = (sessionsData || []).map(session => {
+        const teamObj = currentTeams.find(t => t.id === session.team_id);
+        return {
+          ...session,
+          team_name: teamObj ? teamObj.name : 'Unknown Team'
+        };
+      });
+      setActiveSessions(hydratedSessions);
+
+      // 2. Fetch all active session connections (seen in last 30s)
+      const timeThreshold = new Date(Date.now() - 30 * 1000).toISOString();
+      const { data: connsData, error: connsErr } = await supabase
+        .from('session_connections')
+        .select('*')
+        .gt('last_seen_at', timeThreshold);
+
+      if (connsErr) throw connsErr;
+      setSessionConnections(connsData || []);
+    } catch (err) {
+      console.error('Error polling active lobbies:', err);
+    }
+  };
+
   useEffect(() => {
     if (!loading) {
       loadDashboardData(false);
 
-      // Poll connections every 10 seconds for real-time player counts in browser
+      // Poll active lobbies and user connections every 10 seconds silently
       const timer = setInterval(() => {
-        loadDashboardData(true);
+        pollActiveLobbies();
       }, 10000);
 
       // Load active session from local storage if saved
