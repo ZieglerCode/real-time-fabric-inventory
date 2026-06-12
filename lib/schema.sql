@@ -35,7 +35,10 @@ create table if not exists session_connections (
   unique (session_id, user_id)
 );
 
--- 4. UPGRADE FABRICS TABLE
+-- 4. UPGRADE TABLES
+alter table sessions
+  add column if not exists team_id uuid references teams(id) on delete cascade;
+
 alter table fabrics 
   add column if not exists created_by uuid references auth.users(id) default auth.uid(),
   add column if not exists tagged_by uuid references auth.users(id),
