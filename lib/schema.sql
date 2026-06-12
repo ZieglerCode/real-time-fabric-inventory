@@ -122,11 +122,25 @@ create policy "Allow authenticated users to read fabric images"
   using (bucket_id = 'fabric-images');
 
 -- 7. ENABLE REALTIME SUBSCRIPTIONS FOR SESSIONS & CONNECTIONS
-begin;
-  -- Remove tables from publication if they exist to prevent duplicates
-  alter publication supabase_realtime drop table if exists sessions;
-  alter publication supabase_realtime drop table if exists session_connections;
-  -- Add tables to publication
-  alter publication supabase_realtime add table sessions;
-  alter publication supabase_realtime add table session_connections;
-commit;
+DO $$
+BEGIN
+  -- Try to add table 'sessions'
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE sessions;
+  EXCEPTION
+    WHEN duplicate_object THEN
+      RAISE NOTICE 'Table "sessions" is already in publication "supabase_realtime"';
+    WHEN OTHERS THEN
+      RAISE NOTICE 'Could not add "sessions" to publication: %', SQLERRM;
+  END;
+
+  -- Try to add table 'session_connections'
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE session_connections;
+  EXCEPTION
+    WHEN duplicate_object THEN
+      RAISE NOTICE 'Table "session_connections" is already in publication "supabase_realtime"';
+    WHEN OTHERS THEN
+      RAISE NOTICE 'Could not add "session_connections" to publication: %', SQLERRM;
+  END;
+END $$;
