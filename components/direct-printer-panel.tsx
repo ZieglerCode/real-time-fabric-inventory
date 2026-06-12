@@ -76,7 +76,7 @@ export default function DirectPrinterPanel({
   // Determine code layout scales based on which codes are shown
   const isMinimal = labelLayout === 'minimal';
   const both = !isMinimal && show2D && show1D;
-  const qrScale = isMinimal ? 2.1 : both ? 1.2 : 2;
+  const qrScale = isMinimal ? 1.05 : both ? 1.2 : 2;
   const barScale = isMinimal ? 1.05 : both ? 0.8 : 1;
   const barHeight = isMinimal ? 12 : both ? 7 : 10;
 
@@ -99,8 +99,8 @@ export default function DirectPrinterPanel({
           style={{ width: 288, height: 172 }} /* 2.2in × 1.2in @ 96dpi preview */
         >
           {/* Header: name + ref */}
-          <div className={`${isMinimal ? 'px-4 pt-4 pb-1.5' : 'px-3 pt-2.5 pb-1'} text-center w-full min-w-0 shrink-0`}>
-            <p className={`text-[11px] font-extrabold leading-tight truncate ${
+          <div className={`${isMinimal ? 'px-4 pt-3 pb-1' : 'px-3 pt-2.5 pb-1'} text-center w-full min-w-0 shrink-0`}>
+            <p className={`${isMinimal ? 'text-[10px]' : 'text-[11px]'} font-extrabold leading-tight truncate ${
               savedQrData.name ? 'text-slate-950' : 'text-slate-400 italic'
             }`}>
               {savedQrData.name || 'Unnamed Fabric'}
@@ -113,10 +113,10 @@ export default function DirectPrinterPanel({
           </div>
 
           {/* Codes area – grows to fill, clips overflow */}
-          <div className={`${isMinimal ? 'pb-4 px-4' : 'px-2'} flex-1 flex items-center justify-center gap-2 overflow-hidden min-h-0`}>
+          <div className={`${isMinimal ? 'pb-3 px-4' : 'px-2'} flex-1 flex items-center justify-center gap-2 overflow-hidden min-h-0`}>
             {isMinimal ? (
               minimalCodeKind === '2d' ? (
-                <div className="shrink-0">
+                <div className="shrink-0 max-h-[112px] max-w-[112px] overflow-hidden flex items-center justify-center">
                   <ScannableCode value={publicViewerUrl} type={print2DFormat} scale={qrScale} />
                 </div>
               ) : (

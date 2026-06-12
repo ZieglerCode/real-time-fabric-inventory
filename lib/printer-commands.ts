@@ -35,9 +35,9 @@ export function compileLabel(data: LabelData, language: PrinterLanguage): ArrayB
           'GAP 2 mm, 0 mm',
           'DIRECTION 1',
           'CLS',
-          `TEXT 20,22,"ROMAN.TTF",0,1,1,"${cleanName}"`,
+          `TEXT 20,18,"ROMAN.TTF",0,1,1,"${cleanName}"`,
           codeKind === '2d'
-            ? `QRCODE 122,58,M,4,A,0,"${cleanPublicUrl}"`
+            ? `QRCODE 142,54,M,3,A,0,"${cleanPublicUrl}"`
             : `BARCODE 55,78,"128",72,0,0,2,2,"${cleanId}"`,
           'PRINT 1,1',
           ''
@@ -67,9 +67,9 @@ export function compileLabel(data: LabelData, language: PrinterLanguage): ArrayB
           '^XA',
           '^PW400',
           '^LL240',
-          `^FO20,24^A0N,28,28^FD${cleanName}^FS`,
+          `^FO20,20^A0N,26,26^FD${cleanName}^FS`,
           codeKind === '2d'
-            ? `^FO125,64^BQN,2,4^FDM,${cleanPublicUrl}^FS`
+            ? `^FO135,58^BQN,2,3^FDM,${cleanPublicUrl}^FS`
             : `^FO55,82^BY2^BCN,82,N,N,N^FD${cleanId}^FS`,
           '^XZ',
           ''

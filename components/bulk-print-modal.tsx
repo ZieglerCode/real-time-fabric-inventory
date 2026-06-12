@@ -507,7 +507,7 @@ export default function BulkPrintModal({
                       <div className={`flex items-center justify-center gap-3 w-full ${isMinimal ? '' : 'my-1.5'}`}>
                         {fabric.qr_code_id && (isMinimal ? bulkMinimalCodeKind === '2d' : bulkShow2D) && (
                           <div className="p-0.5 bg-white border border-slate-150 rounded shrink-0">
-                            <ScannableCode value={getPublicFabricViewerUrl(fabric.qr_code_id)} type={print2DFormat} scale={isMinimal ? 1.35 : 1} />
+                            <ScannableCode value={getPublicFabricViewerUrl(fabric.qr_code_id)} type={print2DFormat} scale={isMinimal ? 0.95 : 1} />
                           </div>
                         )}
                         {fabric.qr_code_id && (isMinimal ? bulkMinimalCodeKind === '1d' : bulkShow1D) && (
