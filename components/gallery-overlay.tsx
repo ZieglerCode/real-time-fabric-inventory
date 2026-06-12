@@ -16,6 +16,9 @@ interface Fabric {
   team_name?: string;
   created_by_email?: string | null;
   tagged_by_email?: string | null;
+  color?: string | null;
+  pattern?: string | null;
+  material?: string | null;
 }
 
 interface GalleryOverlayProps {
@@ -209,6 +212,24 @@ export default function GalleryOverlay({
                 <div className="flex items-start justify-between text-xs">
                   <span className="text-slate-400 font-bold">Labeled By</span>
                   <span className="text-white font-semibold">💻 {activeFabric.tagged_by_email}</span>
+                </div>
+              )}
+              {activeFabric.color && (
+                <div className="flex items-start justify-between text-xs animate-in fade-in duration-200">
+                  <span className="text-slate-400 font-bold">Farbe</span>
+                  <span className="text-white font-semibold">{activeFabric.color}</span>
+                </div>
+              )}
+              {activeFabric.pattern && (
+                <div className="flex items-start justify-between text-xs animate-in fade-in duration-200">
+                  <span className="text-slate-400 font-bold">Muster</span>
+                  <span className="text-white font-semibold">{activeFabric.pattern}</span>
+                </div>
+              )}
+              {activeFabric.material && (
+                <div className="flex items-start justify-between text-xs animate-in fade-in duration-200">
+                  <span className="text-slate-400 font-bold">Material</span>
+                  <span className="text-white font-semibold">{activeFabric.material}</span>
                 </div>
               )}
               <div className="flex items-start justify-between text-xs">

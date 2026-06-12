@@ -8,6 +8,9 @@ export interface PublicFabric {
   discarded_at: string | null;
   created_by_email: string | null;
   tagged_by_email: string | null;
+  color: string | null;
+  pattern: string | null;
+  material: string | null;
   session: {
     id: string | null;
     code: string | null;

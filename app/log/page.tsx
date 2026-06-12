@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   ClipboardCheck, Search, Download, Printer, Layers, Clock, 
   ArrowLeft, RefreshCw, Compass, AlertCircle, Loader2, QrCode, 
@@ -30,6 +30,9 @@ interface Fabric {
   session_id?: string | null;
   session_code?: string; // Hydrated field
   team_name?: string;    // Hydrated field
+  color?: string | null;
+  pattern?: string | null;
+  material?: string | null;
 }
 
 interface Team {
@@ -72,6 +75,24 @@ export default function DigitizationLogPage() {
   const [selectedTeamId, setSelectedTeamId] = useState('');
   const [selectedSessionId, setSelectedSessionId] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
+  const [selectedColor, setSelectedColor] = useState('');
+  const [selectedPattern, setSelectedPattern] = useState('');
+  const [selectedMaterial, setSelectedMaterial] = useState('');
+
+  const uniqueColors = useMemo(() => {
+    const colors = fabrics.map(f => f.color?.trim()).filter(Boolean) as string[];
+    return Array.from(new Set(colors)).sort();
+  }, [fabrics]);
+
+  const uniquePatterns = useMemo(() => {
+    const patterns = fabrics.map(f => f.pattern?.trim()).filter(Boolean) as string[];
+    return Array.from(new Set(patterns)).sort();
+  }, [fabrics]);
+
+  const uniqueMaterials = useMemo(() => {
+    const materials = fabrics.map(f => f.material?.trim()).filter(Boolean) as string[];
+    return Array.from(new Set(materials)).sort();
+  }, [fabrics]);
 
   // Modal print state
   const [activePrintFabric, setActivePrintFabric] = useState<Fabric | null>(null);
@@ -316,6 +337,9 @@ export default function DigitizationLogPage() {
       'Name / Pattern',
       'QR Code Reference',
       'Status',
+      'Color',
+      'Pattern',
+      'Material',
       'Created At',
       'Uploaded By (Email)',
       'Labeled By (Email)',
@@ -329,6 +353,9 @@ export default function DigitizationLogPage() {
       f.name || 'Unlabeled / Pending',
       f.qr_code_id || 'None',
       f.status.toUpperCase(),
+      f.color || 'N/A',
+      f.pattern || 'N/A',
+      f.material || 'N/A',
       new Date(f.created_at).toISOString(),
       f.created_by_email || 'Anonymous',
       f.tagged_by_email || 'N/A',
@@ -378,7 +405,16 @@ export default function DigitizationLogPage() {
     // Status filter
     const statusMatch = selectedStatus === '' || f.status === selectedStatus;
 
-    return queryMatch && teamMatch && sessionFilterMatch && statusMatch;
+    // Color filter
+    const colorMatch = selectedColor === '' || f.color === selectedColor;
+
+    // Pattern filter
+    const patternMatch = selectedPattern === '' || f.pattern === selectedPattern;
+
+    // Material filter
+    const materialMatch = selectedMaterial === '' || f.material === selectedMaterial;
+
+    return queryMatch && teamMatch && sessionFilterMatch && statusMatch && colorMatch && patternMatch && materialMatch;
   });
 
   const openFabricDetails = (fabric: Fabric) => {
@@ -387,6 +423,61 @@ export default function DigitizationLogPage() {
       setGalleryActiveIndex(index);
     }
   };
+
+  // Global barcode scanner listener
+  useEffect(() => {
+    let buffer = '';
+    let lastKeyTime = Date.now();
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const now = Date.now();
+      
+      // Barcode scanner key sequence is typed extremely fast
+      if (now - lastKeyTime > 50) {
+        buffer = '';
+      }
+      lastKeyTime = now;
+
+      if (e.key.length > 1 && e.key !== 'Enter') {
+        return;
+      }
+
+      if (e.key === 'Enter') {
+        const cleaned = buffer.trim().toUpperCase();
+        if (cleaned.startsWith('FABRIC-')) {
+          e.preventDefault();
+          // Find matching fabric
+          const target = fabrics.find(f => f.qr_code_id === cleaned);
+          if (target) {
+            // Reset all filters
+            setSearchQuery('');
+            setSelectedTeamId('');
+            setSelectedSessionId('');
+            setSelectedStatus('');
+            setSelectedColor('');
+            setSelectedPattern('');
+            setSelectedMaterial('');
+            
+            // Open gallery index in full list
+            setTimeout(() => {
+              const idx = fabrics.findIndex(item => item.id === target.id);
+              if (idx >= 0) {
+                setGalleryActiveIndex(idx);
+              }
+            }, 100);
+          }
+        }
+        buffer = '';
+      } else {
+        buffer += e.key;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [fabrics]);
 
   const getStats = () => {
     return {
@@ -578,6 +669,51 @@ export default function DigitizationLogPage() {
               </select>
             </div>
 
+          </div>
+
+          {/* Facet Filters Second Row */}
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-4 border-t border-slate-100 pt-3.5">
+            {/* Color Filter */}
+            <div className="md:col-span-4">
+              <select
+                value={selectedColor}
+                onChange={(e) => setSelectedColor(e.target.value)}
+                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              >
+                <option value="">-- Filter by Color (All) --</option>
+                {uniqueColors.map(c => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Pattern Filter */}
+            <div className="md:col-span-4">
+              <select
+                value={selectedPattern}
+                onChange={(e) => setSelectedPattern(e.target.value)}
+                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              >
+                <option value="">-- Filter by Pattern (All) --</option>
+                {uniquePatterns.map(p => (
+                  <option key={p} value={p}>{p}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Material Filter */}
+            <div className="md:col-span-4">
+              <select
+                value={selectedMaterial}
+                onChange={(e) => setSelectedMaterial(e.target.value)}
+                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              >
+                <option value="">-- Filter by Material (All) --</option>
+                {uniqueMaterials.map(m => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
 

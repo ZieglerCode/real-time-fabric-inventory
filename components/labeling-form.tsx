@@ -15,12 +15,21 @@ interface Fabric {
   created_by_email?: string | null;
   tagged_by_email?: string | null;
   session_id?: string | null;
+  color?: string | null;
+  pattern?: string | null;
+  material?: string | null;
 }
 
 interface LabelingFormProps {
   activeFabric: Fabric;
   fabricName: string;
   setFabricName: (name: string) => void;
+  color: string;
+  setColor: (color: string) => void;
+  pattern: string;
+  setPattern: (pattern: string) => void;
+  material: string;
+  setMaterial: (material: string) => void;
   isDiscarding: boolean;
   setIsDiscarding: (val: boolean) => void;
   rejectionReason: string;
@@ -39,6 +48,12 @@ export default function LabelingForm({
   activeFabric,
   fabricName,
   setFabricName,
+  color,
+  setColor,
+  pattern,
+  setPattern,
+  material,
+  setMaterial,
   isDiscarding,
   setIsDiscarding,
   rejectionReason,
@@ -112,10 +127,15 @@ export default function LabelingForm({
                   <span>Detected Properties</span>
                   <button
                     type="button"
-                    onClick={() => setFabricName(suggestions.name)}
+                    onClick={() => {
+                      setFabricName(suggestions.name);
+                      setColor(suggestions.color);
+                      setPattern(suggestions.pattern);
+                      setMaterial(suggestions.material);
+                    }}
                     className="text-[10px] text-indigo-650 hover:text-indigo-805 font-bold uppercase tracking-widest cursor-pointer"
                   >
-                    Apply suggested name
+                    Apply all suggestions
                   </button>
                 </div>
                 
@@ -139,10 +159,15 @@ export default function LabelingForm({
                   <span className="text-slate-500 font-medium">Suggested: <strong className="font-bold text-slate-800">{suggestions.name}</strong></span>
                   <button
                     type="button"
-                    onClick={() => setFabricName(suggestions.name)}
+                    onClick={() => {
+                      setFabricName(suggestions.name);
+                      setColor(suggestions.color);
+                      setPattern(suggestions.pattern);
+                      setMaterial(suggestions.material);
+                    }}
                     className="shrink-0 text-[10px] bg-indigo-50 hover:bg-indigo-100 border border-indigo-100 px-2 py-1 rounded-lg text-indigo-700 font-bold transition-all cursor-pointer"
                   >
-                    Use
+                    Use All
                   </button>
                 </div>
               </div>
@@ -163,12 +188,58 @@ export default function LabelingForm({
               value={fabricName}
               onChange={(e) => setFabricName(e.target.value)}
               placeholder={activeFabric.name
-                ? 'Titel überschreiben oder leer lassen...'
+                ? 'Titel überschreiben oder lehr lassen...'
                 : 'e.g. Indigo Herringbone Linen, Silk Satin 03'
               }
               className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all placeholder:text-slate-400 font-medium text-slate-900 focus:bg-white text-sm"
               disabled={saving}
             />
+
+            {/* Structured attributes fields grid */}
+            <div className="grid grid-cols-3 gap-3 pt-1">
+              <div>
+                <label htmlFor="fabric-color-input" className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  Farbe
+                </label>
+                <input
+                  type="text"
+                  id="fabric-color-input"
+                  value={color}
+                  onChange={(e) => setColor(e.target.value)}
+                  placeholder="z.B. Blau"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all placeholder:text-slate-400 text-xs font-semibold text-slate-800 focus:bg-white"
+                  disabled={saving}
+                />
+              </div>
+              <div>
+                <label htmlFor="fabric-pattern-input" className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  Muster
+                </label>
+                <input
+                  type="text"
+                  id="fabric-pattern-input"
+                  value={pattern}
+                  onChange={(e) => setPattern(e.target.value)}
+                  placeholder="z.B. Karo"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all placeholder:text-slate-400 text-xs font-semibold text-slate-800 focus:bg-white"
+                  disabled={saving}
+                />
+              </div>
+              <div>
+                <label htmlFor="fabric-material-input" className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  Material
+                </label>
+                <input
+                  type="text"
+                  id="fabric-material-input"
+                  value={material}
+                  onChange={(e) => setMaterial(e.target.value)}
+                  placeholder="z.B. Seide"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all placeholder:text-slate-400 text-xs font-semibold text-slate-800 focus:bg-white"
+                  disabled={saving}
+                />
+              </div>
+            </div>
           </div>
 
           <button

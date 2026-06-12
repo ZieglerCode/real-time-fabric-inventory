@@ -15,6 +15,9 @@ interface FabricRecord {
   created_by_email?: string | null;
   tagged_by_email?: string | null;
   session_id?: string | null;
+  color?: string | null;
+  pattern?: string | null;
+  material?: string | null;
 }
 
 interface SessionRecord {
@@ -38,6 +41,9 @@ export interface FabricApiRecord {
   discarded_at: string | null;
   created_by_email: string | null;
   tagged_by_email: string | null;
+  color: string | null;
+  pattern: string | null;
+  material: string | null;
   session: {
     id: string | null;
     code: string | null;
@@ -150,6 +156,9 @@ export async function hydrateFabricRecords(
       discarded_at: fabric.discarded_at || null,
       created_by_email: fabric.created_by_email || null,
       tagged_by_email: fabric.tagged_by_email || null,
+      color: fabric.color || null,
+      pattern: fabric.pattern || null,
+      material: fabric.material || null,
       session: {
         id: fabric.session_id || null,
         code: session?.code || null,

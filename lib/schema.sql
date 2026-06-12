@@ -44,7 +44,10 @@ alter table fabrics
   add column if not exists tagged_by uuid references auth.users(id),
   add column if not exists created_by_email text,
   add column if not exists tagged_by_email text,
-  add column if not exists session_id uuid references sessions(id) on delete cascade;
+  add column if not exists session_id uuid references sessions(id) on delete cascade,
+  add column if not exists color text,
+  add column if not exists pattern text,
+  add column if not exists material text;
 
 -- 5. ENABLE RLS & DEFINE POLICIES
 alter table teams enable row level security;

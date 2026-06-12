@@ -32,6 +32,9 @@ interface Fabric {
   created_by_email?: string | null;
   tagged_by_email?: string | null;
   session_id?: string | null;
+  color?: string | null;
+  pattern?: string | null;
+  material?: string | null;
 }
 
 function TaggingPageContent() {
@@ -202,6 +205,9 @@ function TaggingPageContent() {
   const [activeFabric, setActiveFabric] = useState<Fabric | null>(null);
   const [historyGalleryActiveIndex, setHistoryGalleryActiveIndex] = useState<number | null>(null);
   const [fabricName, setFabricName] = useState<string>('');
+  const [color, setColor] = useState<string>('');
+  const [pattern, setPattern] = useState<string>('');
+  const [material, setMaterial] = useState<string>('');
   const [isDiscarding, setIsDiscarding] = useState<boolean>(false);
   const [rejectionReason, setRejectionReason] = useState<string>('');
   
@@ -480,6 +486,9 @@ function TaggingPageContent() {
     if (activeFabric) {
       // Pre-fill with photographer-provided name if already set
       setFabricName(activeFabric.name || '');
+      setColor(activeFabric.color || '');
+      setPattern(activeFabric.pattern || '');
+      setMaterial(activeFabric.material || '');
 
       const timerDoc = setTimeout(() => {
         inputRef.current?.focus();
@@ -497,6 +506,9 @@ function TaggingPageContent() {
     }
     const timerState = setTimeout(() => {
       setFabricName('');
+      setColor('');
+      setPattern('');
+      setMaterial('');
       setIsDiscarding(false);
       setRejectionReason('');
       setSavedQrData(null);
@@ -504,6 +516,78 @@ function TaggingPageContent() {
     return () => clearTimeout(timerState);
   }, [activeFabric]);
 
+  // Global barcode scanner listener
+  useEffect(() => {
+    let buffer = '';
+    let lastKeyTime = Date.now();
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const now = Date.now();
+      
+      // Barcode scanner key sequence is typed extremely fast
+      if (now - lastKeyTime > 50) {
+        buffer = '';
+      }
+      lastKeyTime = now;
+
+      if (e.key.length > 1 && e.key !== 'Enter') {
+        return;
+      }
+
+      if (e.key === 'Enter') {
+        const cleaned = buffer.trim().toUpperCase();
+        if (cleaned.startsWith('FABRIC-')) {
+          e.preventDefault();
+          // Find matching completed fabric in session
+          const idx = completedFabrics.findIndex(f => f.qr_code_id === cleaned);
+          if (idx >= 0) {
+            setHistoryGalleryActiveIndex(idx);
+          }
+        }
+        buffer = '';
+      } else {
+        buffer += e.key;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [completedFabrics]);
+
+
+  const triggerFabricWebhook = async (event: string, fabricData: any) => {
+    if (isConfigured) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
+        if (!token) return;
+
+        await fetch('/api/v1/webhooks/dispatch', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            event,
+            payload: fabricData
+          })
+        });
+      } catch (err) {
+        console.error('Failed to trigger server webhook:', err);
+      }
+    } else {
+      try {
+        // Sandbox mode local dispatch
+        const { dispatchWebhook } = await import('@/lib/webhooks');
+        dispatchWebhook(event, fabricData);
+      } catch (err) {
+        console.error('Failed to dispatch local webhook:', err);
+      }
+    }
+  };
 
   // Tag Fabric and generate code
   const handleSaveAndGenerateQR = async (e: React.FormEvent) => {
@@ -523,7 +607,10 @@ function TaggingPageContent() {
             qr_code_id: generatedQrId,
             status: 'completed',
             tagged_by: user?.id,
-            tagged_by_email: user?.email
+            tagged_by_email: user?.email,
+            color: color.trim() || null,
+            pattern: pattern.trim() || null,
+            material: material.trim() || null
           })
           .eq('id', fabricId);
 
@@ -542,7 +629,10 @@ function TaggingPageContent() {
           name: fabricName.trim(),
           qr_code_id: generatedQrId,
           status: 'completed',
-          tagged_by_email: 'sandbox@company.com'
+          tagged_by_email: 'sandbox@company.com',
+          color: color.trim() || null,
+          pattern: pattern.trim() || null,
+          material: material.trim() || null
         };
 
         processed.unshift(completedItem);
@@ -563,6 +653,18 @@ function TaggingPageContent() {
 
         window.dispatchEvent(new Event('storage'));
       }
+
+      const fabricPayload = {
+        id: fabricId,
+        name: fabricName.trim(),
+        qr_code_id: generatedQrId,
+        status: 'completed',
+        color: color.trim() || null,
+        pattern: pattern.trim() || null,
+        material: material.trim() || null,
+        tagged_by_email: user?.email || 'sandbox@company.com'
+      };
+      triggerFabricWebhook('fabric.completed', fabricPayload);
 
       setSavedQrData({ id: generatedQrId, name: fabricName.trim() });
     } catch (err) {
@@ -622,6 +724,15 @@ function TaggingPageContent() {
 
         window.dispatchEvent(new Event('storage'));
       }
+
+      const discardPayload = {
+        id: fabricId,
+        status: 'discarded',
+        rejection_reason: finalReason,
+        discarded_at: new Date().toISOString(),
+        tagged_by_email: user?.email || 'sandbox@company.com'
+      };
+      triggerFabricWebhook('fabric.discarded', discardPayload);
 
       setIsDiscarding(false);
       setRejectionReason('');
@@ -836,6 +947,12 @@ function TaggingPageContent() {
                   activeFabric={activeFabric}
                   fabricName={fabricName}
                   setFabricName={setFabricName}
+                  color={color}
+                  setColor={setColor}
+                  pattern={pattern}
+                  setPattern={setPattern}
+                  material={material}
+                  setMaterial={setMaterial}
                   isDiscarding={isDiscarding}
                   setIsDiscarding={setIsDiscarding}
                   rejectionReason={rejectionReason}
