@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Tag, Loader2, AlertCircle, ArrowRight, Ban } from 'lucide-react';
+import { Tag, Loader2, AlertCircle, ArrowRight, Ban, CheckCircle2, Pencil } from 'lucide-react';
 
 interface Fabric {
   id: string;
@@ -61,10 +61,27 @@ export default function LabelingForm({
 
       {!isDiscarding ? (
         <form onSubmit={onSubmitLabel} className="space-y-4">
+
+          {/* Pre-labeled badge — shown when photographer already added a title */}
+          {activeFabric.name && (
+            <div className="flex items-start gap-2.5 p-3 bg-emerald-50 border border-emerald-100 rounded-2xl animate-in fade-in duration-200">
+              <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider">Bereits vom Fotografen beschriftet</p>
+                <p className="text-xs text-emerald-700 font-semibold mt-0.5 truncate">&ldquo;{activeFabric.name}&rdquo;</p>
+              </div>
+              <span className="text-[9px] font-bold text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full uppercase tracking-wider shrink-0">Vorausgefüllt</span>
+            </div>
+          )}
+
           <div className="space-y-3">
             <div className="flex justify-between items-center">
-              <label htmlFor="fabric-name-input" className="text-xs font-bold text-slate-550 uppercase tracking-wider block">
-                Fabric Name / Pattern Variant
+              <label htmlFor="fabric-name-input" className="text-xs font-bold text-slate-550 uppercase tracking-wider block flex items-center gap-1.5">
+                {activeFabric.name ? (
+                  <><Pencil className="h-3 w-3 text-slate-400" /> Titel bearbeiten (optional)</>  
+                ) : (
+                  'Fabric Name / Pattern Variant'
+                )}
               </label>
               
               {/* Smart tag trigger */}
@@ -145,7 +162,10 @@ export default function LabelingForm({
               required
               value={fabricName}
               onChange={(e) => setFabricName(e.target.value)}
-              placeholder="e.g. Indigo Herringbone Linen, Silk Satin 03"
+              placeholder={activeFabric.name
+                ? 'Titel überschreiben oder leer lassen...'
+                : 'e.g. Indigo Herringbone Linen, Silk Satin 03'
+              }
               className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all placeholder:text-slate-400 font-medium text-slate-900 focus:bg-white text-sm"
               disabled={saving}
             />
@@ -154,16 +174,23 @@ export default function LabelingForm({
           <button
             type="submit"
             disabled={saving || !fabricName.trim()}
-            className={`w-full py-4 bg-indigo-650 hover:bg-indigo-700 text-white rounded-2xl font-bold shadow-lg shadow-indigo-100 transition-colors flex items-center justify-center gap-2 cursor-pointer border-b-2 border-indigo-805 ${
+            className={`w-full py-4 rounded-2xl font-bold shadow-lg transition-colors flex items-center justify-center gap-2 cursor-pointer border-b-2 ${
               saving || !fabricName.trim()
-                ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed shadow-none hover:bg-slate-100'
-                : ''
+                ? 'bg-slate-100 text-slate-400 border border-slate-200 border-b-slate-200 cursor-not-allowed shadow-none'
+                : activeFabric.name
+                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-100 border-emerald-800'
+                  : 'bg-indigo-650 hover:bg-indigo-700 text-white shadow-indigo-100 border-indigo-805'
             }`}
           >
             {saving ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin text-white" />
                 <span>Saving label...</span>
+              </>
+            ) : activeFabric.name ? (
+              <>
+                <CheckCircle2 className="h-4 w-4" />
+                <span>Bestätigen & QR generieren</span>
               </>
             ) : (
               <>

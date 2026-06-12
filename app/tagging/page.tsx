@@ -478,6 +478,9 @@ function TaggingPageContent() {
     setSuggestions(null);
     setDetectError('');
     if (activeFabric) {
+      // Pre-fill with photographer-provided name if already set
+      setFabricName(activeFabric.name || '');
+
       const timerDoc = setTimeout(() => {
         inputRef.current?.focus();
       }, 50);
