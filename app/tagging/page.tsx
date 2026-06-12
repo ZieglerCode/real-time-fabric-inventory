@@ -301,10 +301,9 @@ function TaggingPageContent() {
     }
   }, [sessionId]);
 
-  // Fetch pending and completed fabrics from Live Supabase
-  const fetchFabrics = useCallback(async () => {
+  const fetchFabrics = useCallback(async (silent = false) => {
     if (!user || !sessionId) return;
-    setLoading(true);
+    if (!silent) setLoading(true);
     try {
       // 1. Fetch pending rows sorted oldest-first, filtered by session ID
       const { data: pendingData, error: pendingErr } = await supabase
@@ -356,7 +355,7 @@ function TaggingPageContent() {
 
     if (isConfigured && user) {
       const timer = setTimeout(() => {
-        fetchFabrics();
+        fetchFabrics(false);
       }, 0);
 
       // Realtime subscription mapping: Subscribe to inserts & updates
@@ -378,7 +377,7 @@ function TaggingPageContent() {
               (oldRow && oldRow.session_id === sessionId)
             ) {
               console.log('Real-time database event in session:', payload);
-              fetchFabrics();
+              fetchFabrics(true);
             }
           }
         )
@@ -461,7 +460,7 @@ function TaggingPageContent() {
 
         if (error) throw error;
         
-        await fetchFabrics();
+        await fetchFabrics(true);
       } else {
         // Offline sandbox mode update
         const queue: Fabric[] = JSON.parse(localStorage.getItem('fabric_local_queue') || '[]');
@@ -529,7 +528,7 @@ function TaggingPageContent() {
 
         if (error) throw error;
         
-        await fetchFabrics();
+        await fetchFabrics(true);
       } else {
         // Offline sandbox mode rejection
         const queue: Fabric[] = JSON.parse(localStorage.getItem('fabric_local_queue') || '[]');
@@ -724,7 +723,7 @@ function TaggingPageContent() {
 
           {isConfigured && (
             <button 
-              onClick={fetchFabrics}
+              onClick={() => fetchFabrics(false)}
               className="p-1 px-2.5 text-slate-500 hover:text-slate-800 border border-slate-200 hover:border-slate-300 bg-white shadow-xs rounded-lg transition-all cursor-pointer"
               title="Manual Sync"
             >

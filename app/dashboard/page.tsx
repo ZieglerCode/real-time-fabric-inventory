@@ -64,7 +64,7 @@ export default function DashboardPage() {
     return `${prefix}-${number}`.toUpperCase();
   };
 
-  const loadDashboardData = async () => {
+  const loadDashboardData = async (silent = false) => {
     if (!isConfigured) {
       // --- OFFLINE MOCK MODE ---
       const localTeams: Team[] = JSON.parse(localStorage.getItem('fabric_local_teams') || '[]');
@@ -100,7 +100,7 @@ export default function DashboardPage() {
 
     if (!user) return;
 
-    setDashboardLoading(true);
+    if (!silent) setDashboardLoading(true);
     setErrorText('');
 
     try {
@@ -172,11 +172,11 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!loading) {
-      loadDashboardData();
+      loadDashboardData(false);
 
       // Poll connections every 10 seconds for real-time player counts in browser
       const timer = setInterval(() => {
-        loadDashboardData();
+        loadDashboardData(true);
       }, 10000);
 
       // Load active session from local storage if saved
@@ -248,7 +248,7 @@ export default function DashboardPage() {
       }
 
       setTeamName('');
-      loadDashboardData();
+      loadDashboardData(true);
     } catch (err: any) {
       console.error(err);
       setErrorText(err.message || 'Failed to create team.');
@@ -309,7 +309,7 @@ export default function DashboardPage() {
       }
 
       setTeamInviteCode('');
-      loadDashboardData();
+      loadDashboardData(true);
     } catch (err: any) {
       console.error(err);
       setErrorText(err.message || 'Failed to join team.');
@@ -365,7 +365,7 @@ export default function DashboardPage() {
       }
 
       setSelectedTeamId('');
-      loadDashboardData();
+      loadDashboardData(true);
     } catch (err: any) {
       console.error(err);
       setErrorText(err.message || 'Failed to create session.');
@@ -458,7 +458,7 @@ export default function DashboardPage() {
       }
 
       handleLeaveSession();
-      loadDashboardData();
+      loadDashboardData(true);
     } catch (err: any) {
       console.error(err);
       alert('Failed to archive session.');
