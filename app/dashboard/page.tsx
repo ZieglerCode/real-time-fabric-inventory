@@ -246,10 +246,91 @@ export default function DashboardPage() {
     if (!loading) {
       loadDashboardData(false);
 
-      // Poll active lobbies and user connections every 10 seconds silently
-      const timer = setInterval(() => {
-        pollActiveLobbies();
-      }, 10000);
+      let mockTimer: any;
+      let cleanupTimer: any;
+      let sessionsChannel: any;
+      let connsChannel: any;
+
+      if (!isConfigured) {
+        // Poll active lobbies and user connections every 5 seconds silently in sandbox
+        mockTimer = setInterval(() => {
+          pollActiveLobbies();
+        }, 5000);
+      } else {
+        // Real-time connections cleanup (sweep stale entries every 10s locally)
+        cleanupTimer = setInterval(() => {
+          const threshold = Date.now() - 30 * 1000;
+          setSessionConnections(prev => 
+            prev.filter(c => new Date(c.last_seen_at).getTime() > threshold)
+          );
+        }, 10000);
+
+        // Realtime Postgres changes listener for sessions
+        sessionsChannel = supabase
+          .channel('realtime-sessions')
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'sessions' },
+            (payload) => {
+              const newSession = payload.new as Session;
+              const oldSession = payload.old as Session;
+              
+              if (payload.eventType === 'INSERT') {
+                const teamObj = teamsRef.current.find(t => t.id === newSession.team_id);
+                if (teamObj && newSession.status === 'active') {
+                  const hydrated = { ...newSession, team_name: teamObj.name };
+                  setActiveSessions(prev => {
+                    if (prev.some(s => s.id === newSession.id)) return prev;
+                    return [hydrated, ...prev];
+                  });
+                }
+              } else if (payload.eventType === 'UPDATE') {
+                if (newSession.status !== 'active') {
+                  setActiveSessions(prev => prev.filter(s => s.id !== newSession.id));
+                } else {
+                  const teamObj = teamsRef.current.find(t => t.id === newSession.team_id);
+                  const hydrated = { ...newSession, team_name: teamObj?.name || 'Unknown Team' };
+                  setActiveSessions(prev => prev.map(s => s.id === newSession.id ? hydrated : s));
+                }
+              } else if (payload.eventType === 'DELETE') {
+                setActiveSessions(prev => prev.filter(s => s.id !== oldSession.id));
+              }
+            }
+          )
+          .subscribe();
+
+        // Realtime Postgres changes listener for connections (heartbeats)
+        connsChannel = supabase
+          .channel('realtime-connections')
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'session_connections' },
+            (payload) => {
+              const newConn = payload.new as Connection;
+              const oldConn = payload.old as Connection;
+
+              if (payload.eventType === 'INSERT') {
+                setSessionConnections(prev => {
+                  if (prev.some(c => c.user_id === newConn.user_id && c.session_id === newConn.session_id)) {
+                    // Update connection if already present
+                    return prev.map(c => (c.user_id === newConn.user_id && c.session_id === newConn.session_id) ? newConn : c);
+                  }
+                  return [...prev, newConn];
+                });
+              } else if (payload.eventType === 'UPDATE') {
+                setSessionConnections(prev => {
+                  if (prev.some(c => c.user_id === newConn.user_id && c.session_id === newConn.session_id)) {
+                    return prev.map(c => (c.user_id === newConn.user_id && c.session_id === newConn.session_id) ? newConn : c);
+                  }
+                  return [...prev, newConn];
+                });
+              } else if (payload.eventType === 'DELETE') {
+                setSessionConnections(prev => prev.filter(c => !(c.user_id === oldConn.user_id && c.session_id === oldConn.session_id)));
+              }
+            }
+          )
+          .subscribe();
+      }
 
       // Load active session from local storage if saved
       const savedCode = localStorage.getItem('ziegler_active_session_code');
@@ -265,9 +346,14 @@ export default function DashboardPage() {
         });
       }
 
-      return () => clearInterval(timer);
+      return () => {
+        if (mockTimer) clearInterval(mockTimer);
+        if (cleanupTimer) clearInterval(cleanupTimer);
+        if (sessionsChannel) supabase.removeChannel(sessionsChannel);
+        if (connsChannel) supabase.removeChannel(connsChannel);
+      };
     }
-  }, [loading, user]);
+  }, [loading, user, isConfigured]);
 
   const handleCreateTeam = async (e: React.FormEvent) => {
     e.preventDefault();

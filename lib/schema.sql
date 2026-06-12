@@ -120,3 +120,13 @@ create policy "Allow authenticated users to read fabric images"
   on storage.objects for select
   to authenticated
   using (bucket_id = 'fabric-images');
+
+-- 7. ENABLE REALTIME SUBSCRIPTIONS FOR SESSIONS & CONNECTIONS
+begin;
+  -- Remove tables from publication if they exist to prevent duplicates
+  alter publication supabase_realtime drop table if exists sessions;
+  alter publication supabase_realtime drop table if exists session_connections;
+  -- Add tables to publication
+  alter publication supabase_realtime add table sessions;
+  alter publication supabase_realtime add table session_connections;
+commit;
