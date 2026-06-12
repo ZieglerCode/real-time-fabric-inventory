@@ -65,16 +65,16 @@ export default function Navigation({ children }: { children: React.ReactNode }) 
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex flex-col lg:flex-row relative">
       
-      {/* 1. DESKTOP SIDEBAR */}
-      <aside className="hidden lg:flex flex-col justify-between w-64 bg-white border-r border-slate-200/80 shrink-0 sticky top-0 h-screen z-20 shadow-xs">
-        <div className="p-6 space-y-8">
+      {/* 1. DESKTOP HOVER SIDEBAR */}
+      <aside className="hidden lg:flex flex-col justify-between w-20 hover:w-64 bg-white border-r border-slate-200/80 shrink-0 sticky top-0 h-screen z-20 shadow-xs transition-all duration-300 ease-in-out group overflow-hidden">
+        <div className="p-4 group-hover:p-6 space-y-8 transition-all duration-300">
           
           {/* Logo Header */}
-          <div className="flex items-center gap-2.5">
-            <div className="h-9 w-9 bg-indigo-650 rounded-xl flex items-center justify-center text-white shadow-md shadow-indigo-200">
+          <div className="flex items-center gap-3.5">
+            <div className="h-9 w-9 bg-indigo-650 rounded-xl flex items-center justify-center text-white shadow-md shadow-indigo-200 shrink-0">
               <Layers className="h-5 w-5" />
             </div>
-            <div>
+            <div className="opacity-0 group-hover:opacity-100 transition-all duration-300 ease-in-out whitespace-nowrap overflow-hidden pointer-events-none">
               <span className="font-bold tracking-tight text-slate-900 text-sm block leading-none">Ziegler</span>
               <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Inventory Hub</span>
             </div>
@@ -82,13 +82,17 @@ export default function Navigation({ children }: { children: React.ReactNode }) 
 
           {/* Active Session Status */}
           {activeSession ? (
-            <div className="bg-indigo-50/70 border border-indigo-100/60 rounded-2xl p-4 space-y-2 relative overflow-hidden">
+            <div className="bg-indigo-50/70 border border-indigo-100/60 rounded-2xl p-3 group-hover:p-4 space-y-2 relative overflow-hidden transition-all duration-300">
               <div className="absolute top-0 right-0 w-20 h-20 bg-indigo-200/20 rounded-full blur-xl pointer-events-none" />
-              <div className="flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-[9px] font-bold text-indigo-700 uppercase tracking-wider">Active Workspace</span>
+              <div className="flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                <span className="text-[9px] font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                  Active Workspace
+                </span>
               </div>
-              <p className="text-sm font-extrabold text-slate-800 tracking-wide font-mono uppercase">{activeSession}</p>
+              <p className="text-xs group-hover:text-sm font-extrabold text-slate-805 tracking-wide font-mono uppercase whitespace-nowrap overflow-hidden text-ellipsis">
+                {activeSession}
+              </p>
               <button
                 onClick={() => {
                   if (confirm('Leave this session and return to main browser?')) {
@@ -99,33 +103,38 @@ export default function Navigation({ children }: { children: React.ReactNode }) 
                     router.push('/dashboard');
                   }
                 }}
-                className="text-[10px] text-slate-400 hover:text-rose-600 font-bold transition-colors block text-left"
+                className="text-[10px] text-slate-400 hover:text-rose-600 font-bold transition-colors block text-left whitespace-nowrap opacity-0 group-hover:opacity-100 duration-300"
               >
                 Disconnect Session
               </button>
             </div>
           ) : (
-            <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4">
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider leading-relaxed">No active session. Choose or create a lobby in the browser.</p>
+            <div className="bg-slate-50 border border-slate-100 rounded-2xl p-3 group-hover:p-4 transition-all duration-300 flex items-center justify-center group-hover:justify-start">
+              <p className="text-[10px] text-slate-450 font-bold uppercase tracking-wider leading-relaxed whitespace-nowrap overflow-hidden text-ellipsis">
+                <span className="group-hover:hidden">Offline</span>
+                <span className="hidden group-hover:inline">No active session</span>
+              </p>
             </div>
           )}
 
           {/* Navigation Links */}
-          <nav className="space-y-1.5">
+          <nav className="space-y-2">
             {navItems.map((item) => {
               const Icon = item.icon;
               return (
                 <Link
                   key={item.name}
                   href={item.href}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all ${
+                  className={`flex items-center gap-3.5 px-3.5 py-3 rounded-xl text-xs font-bold transition-all border ${
                     item.active
-                      ? 'bg-indigo-50 text-indigo-750 border border-indigo-100/40 shadow-xs'
-                      : 'text-slate-500 hover:text-slate-905 hover:bg-slate-50 border border-transparent'
+                      ? 'bg-indigo-50 text-indigo-750 border-indigo-100/40 shadow-xs'
+                      : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50 border-transparent'
                   }`}
                 >
-                  <Icon className={`h-4.5 w-4.5 ${item.active ? 'text-indigo-650' : 'text-slate-400'}`} />
-                  <span>{item.name}</span>
+                  <Icon className={`h-4.5 w-4.5 shrink-0 ${item.active ? 'text-indigo-650' : 'text-slate-400'}`} />
+                  <span className="opacity-0 group-hover:opacity-100 transition-all duration-300 ease-in-out whitespace-nowrap overflow-hidden">
+                    {item.name}
+                  </span>
                 </Link>
               );
             })}
@@ -133,13 +142,13 @@ export default function Navigation({ children }: { children: React.ReactNode }) 
         </div>
 
         {/* User profile & Logout */}
-        <div className="p-6 border-t border-slate-105 space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-xl bg-slate-50 border border-slate-200/60 flex items-center justify-center text-slate-500">
+        <div className="p-4 group-hover:p-6 border-t border-slate-100 space-y-4 transition-all duration-300">
+          <div className="flex items-center gap-3.5">
+            <div className="h-9 w-9 rounded-xl bg-slate-50 border border-slate-200/60 flex items-center justify-center text-slate-500 shrink-0">
               <User className="h-4.5 w-4.5" />
             </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-bold text-slate-800 truncate">
+            <div className="min-w-0 flex-1 opacity-0 group-hover:opacity-100 transition-all duration-300 ease-in-out whitespace-nowrap overflow-hidden">
+              <p className="text-xs font-bold text-slate-805 truncate">
                 {user ? user.email : 'Sandbox Mode'}
               </p>
               <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">
@@ -150,10 +159,12 @@ export default function Navigation({ children }: { children: React.ReactNode }) 
           {isConfigured && (
             <button
               onClick={signOut}
-              className="w-full py-2.5 px-4 rounded-xl border border-slate-200 hover:border-rose-100 hover:bg-rose-50 text-slate-500 hover:text-rose-600 text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full py-2.5 px-3 rounded-xl border border-slate-200 hover:border-rose-100 hover:bg-rose-50 text-slate-550 hover:text-rose-600 text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap overflow-hidden"
             >
-              <LogOut className="h-4 w-4" />
-              <span>Sign Out</span>
+              <LogOut className="h-4 w-4 shrink-0" />
+              <span className="opacity-0 group-hover:opacity-100 transition-all duration-300 ease-in-out">
+                Sign Out
+              </span>
             </button>
           )}
         </div>
