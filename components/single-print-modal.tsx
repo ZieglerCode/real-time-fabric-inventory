@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { Printer, X, Usb, Bluetooth, AlertCircle, Loader2 } from 'lucide-react';
 import ScannableCode, { CodeType } from './scannable-code';
-import { PrinterLanguage } from '@/hooks/use-printer';
+import { LabelCodeKind, LabelLayout, PrinterLanguage } from '@/hooks/use-printer';
 
 interface Fabric {
   id: string;
@@ -33,7 +33,7 @@ interface SinglePrintModalProps {
   connectUSB: (isSandbox?: boolean) => Promise<void>;
   connectBluetooth: (isSandbox?: boolean) => Promise<void>;
   isConfigured: boolean;
-  handlePrintLabel: () => void;
+  handlePrintLabel: (options?: { layout?: LabelLayout; codeKind?: LabelCodeKind }) => void;
   hasUsbSupport: boolean;
   hasBluetoothSupport: boolean;
   printerErrorMsg: string;
@@ -63,11 +63,14 @@ export default function SinglePrintModal({
 }: SinglePrintModalProps) {
   const [show2D, setShow2D] = useState(true);
   const [show1D, setShow1D] = useState(true);
+  const [labelLayout, setLabelLayout] = useState<LabelLayout>('standard');
+  const [minimalCodeKind, setMinimalCodeKind] = useState<LabelCodeKind>('2d');
 
-  const both = show2D && show1D;
-  const qrScale = both ? 1.2 : 2;
-  const barScale = both ? 0.8 : 1;
-  const barHeight = both ? 7 : 10;
+  const isMinimal = labelLayout === 'minimal';
+  const both = !isMinimal && show2D && show1D;
+  const qrScale = isMinimal ? 2.1 : both ? 1.2 : 2;
+  const barScale = isMinimal ? 1.05 : both ? 0.8 : 1;
+  const barHeight = isMinimal ? 12 : both ? 7 : 10;
   const codeValue = activePrintFabric.qr_code_id || '';
   const footerText = activePrintFabric.team_name
     ? `${activePrintFabric.team_name} Textile`
@@ -99,20 +102,32 @@ export default function SinglePrintModal({
             style={{ width: 288, height: 172 }}
           >
             {/* Header: name + ref */}
-            <div className="px-3 pt-2.5 pb-1 text-center w-full min-w-0 shrink-0">
+            <div className={`${isMinimal ? 'px-4 pt-4 pb-1.5' : 'px-3 pt-2.5 pb-1'} text-center w-full min-w-0 shrink-0`}>
               <p className={`text-[11px] font-extrabold leading-tight truncate ${
                 activePrintFabric.name ? 'text-slate-950' : 'text-slate-400 italic'
               }`}>
                 {activePrintFabric.name || 'Unnamed Fabric'}
               </p>
-              <p className="text-[7px] font-mono text-slate-400 font-bold uppercase tracking-wider mt-0.5 truncate">
-                {codeValue}
-              </p>
+              {!isMinimal && (
+                <p className="text-[7px] font-mono text-slate-400 font-bold uppercase tracking-wider mt-0.5 truncate">
+                  {codeValue}
+                </p>
+              )}
             </div>
 
             {/* Codes area — fills remaining height, clips overflow */}
-            <div className="flex-1 flex items-center justify-center gap-2 px-2 overflow-hidden min-h-0">
-              {!show2D && !show1D ? (
+            <div className={`${isMinimal ? 'pb-4 px-4' : 'px-2'} flex-1 flex items-center justify-center gap-2 overflow-hidden min-h-0`}>
+              {isMinimal ? (
+                minimalCodeKind === '2d' ? (
+                  <div className="shrink-0">
+                    <ScannableCode value={codeValue} type={print2DFormat} scale={qrScale} />
+                  </div>
+                ) : (
+                  <div className="shrink-0 max-w-[246px] overflow-hidden">
+                    <ScannableCode value={codeValue} type={print1DFormat} scale={barScale} height={barHeight} />
+                  </div>
+                )
+              ) : !show2D && !show1D ? (
                 <p className="text-[9px] text-slate-400 font-medium">No code selected</p>
               ) : both ? (
                 <>
@@ -135,14 +150,16 @@ export default function SinglePrintModal({
             </div>
 
             {/* Footer */}
-            <div className="px-3 pb-2 pt-1 border-t border-slate-100 flex justify-between items-center shrink-0">
-              <span className="text-[6.5px] font-bold text-slate-400 uppercase tracking-widest truncate mr-2">
-                {footerText}
-              </span>
-              <svg className="h-3.5 w-3.5 text-slate-300 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zm0 9.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zm9.75-9.75A2.25 2.25 0 0115.75 3.75H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zm0 9.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
-              </svg>
-            </div>
+            {!isMinimal && (
+              <div className="px-3 pb-2 pt-1 border-t border-slate-100 flex justify-between items-center shrink-0">
+                <span className="text-[6.5px] font-bold text-slate-400 uppercase tracking-widest truncate mr-2">
+                  {footerText}
+                </span>
+                <svg className="h-3.5 w-3.5 text-slate-300 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zm0 9.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zm9.75-9.75A2.25 2.25 0 0115.75 3.75H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zm0 9.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
+                </svg>
+              </div>
+            )}
           </div>
         </div>
 
@@ -321,6 +338,42 @@ export default function SinglePrintModal({
           )}
 
           <div className="space-y-3">
+            <div>
+              <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+                Label Layout
+              </h4>
+              <div className="grid grid-cols-2 gap-2 bg-slate-100 p-1 rounded-xl">
+                {(['standard', 'minimal'] as const).map((layout) => (
+                  <button
+                    key={layout}
+                    type="button"
+                    onClick={() => setLabelLayout(layout)}
+                    className={`py-1.5 text-[10px] font-bold rounded-lg transition-all cursor-pointer ${
+                      labelLayout === layout
+                        ? 'bg-white text-indigo-650 shadow-xs border border-slate-200/50'
+                        : 'text-slate-500 hover:text-slate-700'
+                    }`}
+                  >
+                    {layout === 'standard' ? 'Standard' : 'Minimal'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {isMinimal && (
+              <div>
+                <label className="block text-[9.5px] font-bold text-slate-500 mb-1">Minimal Code</label>
+                <select
+                  value={minimalCodeKind}
+                  onChange={(e) => setMinimalCodeKind(e.target.value as LabelCodeKind)}
+                  className="w-full bg-white border border-slate-200 rounded-xl text-xs font-semibold px-2.5 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer text-slate-700"
+                >
+                  <option value="2d">2D Code only</option>
+                  <option value="1d">1D Barcode only</option>
+                </select>
+              </div>
+            )}
+
             <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
               Label Code Formats
             </h4>
@@ -370,7 +423,7 @@ export default function SinglePrintModal({
             <button
               type="button"
               disabled={printerMode !== 'browser' && printerStatus !== 'connected'}
-              onClick={handlePrintLabel}
+              onClick={() => handlePrintLabel({ layout: labelLayout, codeKind: minimalCodeKind })}
               className={`inline-flex items-center gap-1.5 px-4.5 py-2 text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-md border-b ${
                 printerMode !== 'browser' && printerStatus !== 'connected'
                   ? 'bg-slate-300 border-slate-400 cursor-not-allowed shadow-none'

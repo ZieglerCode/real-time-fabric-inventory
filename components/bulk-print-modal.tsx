@@ -3,7 +3,7 @@
 import React from 'react';
 import { Printer, X, Usb, Bluetooth, Loader2 } from 'lucide-react';
 import ScannableCode, { CodeType } from './scannable-code';
-import { PrinterLanguage } from '@/hooks/use-printer';
+import { LabelCodeKind, LabelLayout, PrinterLanguage } from '@/hooks/use-printer';
 
 interface Fabric {
   id: string;
@@ -37,6 +37,10 @@ interface BulkPrintModalProps {
   setBulkShowFooter: (show: boolean) => void;
   bulkScale: number;
   setBulkScale: (scale: number) => void;
+  bulkLabelLayout: LabelLayout;
+  setBulkLabelLayout: (layout: LabelLayout) => void;
+  bulkMinimalCodeKind: LabelCodeKind;
+  setBulkMinimalCodeKind: (kind: LabelCodeKind) => void;
   isPrintingBulk: boolean;
   bulkPrintProgress: number;
   printerMode: 'browser' | 'usb' | 'bluetooth';
@@ -78,6 +82,10 @@ export default function BulkPrintModal({
   setBulkShowFooter,
   bulkScale,
   setBulkScale,
+  bulkLabelLayout,
+  setBulkLabelLayout,
+  bulkMinimalCodeKind,
+  setBulkMinimalCodeKind,
   isPrintingBulk,
   bulkPrintProgress,
   printerMode,
@@ -102,6 +110,7 @@ export default function BulkPrintModal({
   const printableCount = fabrics.filter(
     (f) => selectedFabricIds.includes(f.id) && f.status === 'completed' && f.qr_code_id
   ).length;
+  const isMinimal = bulkLabelLayout === 'minimal';
 
   return (
     <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-40 print:relative print:bg-white print:p-0 print:inset-auto animate-in fade-in duration-200">
@@ -228,7 +237,42 @@ export default function BulkPrintModal({
                   </select>
                 </div>
 
+                <div>
+                  <label className="block text-[9.5px] font-bold text-slate-505 mb-1">Label Layout</label>
+                  <div className="grid grid-cols-2 gap-2 bg-slate-100 p-1 rounded-xl">
+                    {(['standard', 'minimal'] as const).map((layout) => (
+                      <button
+                        key={layout}
+                        type="button"
+                        onClick={() => setBulkLabelLayout(layout)}
+                        className={`py-1.5 text-[10px] font-bold rounded-lg transition-all cursor-pointer ${
+                          bulkLabelLayout === layout
+                            ? 'bg-white text-indigo-650 shadow-xs border border-slate-200/50'
+                            : 'text-slate-500 hover:text-slate-700'
+                        }`}
+                      >
+                        {layout === 'standard' ? 'Standard' : 'Minimal'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {isMinimal && (
+                  <div>
+                    <label className="block text-[9.5px] font-bold text-slate-505 mb-1">Minimal Code</label>
+                    <select
+                      value={bulkMinimalCodeKind}
+                      onChange={(e) => setBulkMinimalCodeKind(e.target.value as LabelCodeKind)}
+                      className="w-full bg-white border border-slate-200 rounded-xl text-xs font-semibold px-2.5 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+                    >
+                      <option value="2d">2D Code only</option>
+                      <option value="1d">1D Barcode only</option>
+                    </select>
+                  </div>
+                )}
+
                 {/* Element visibility toggles */}
+                {!isMinimal && (
                 <div className="space-y-2.5 pt-1">
                   <label className="block text-[9.5px] font-bold text-slate-500 uppercase tracking-wider">
                     Visible Card Info
@@ -281,6 +325,7 @@ export default function BulkPrintModal({
                     </label>
                   </div>
                 </div>
+                )}
               </div>
             ) : (
               // Direct Stream Configuration drawer
@@ -434,7 +479,9 @@ export default function BulkPrintModal({
                   .map((fabric) => (
                     <div
                       key={fabric.id}
-                      className="bulk-grid-label-card bg-white border border-slate-200 p-3 rounded-xl flex flex-col justify-between items-center text-center shadow-3xs aspect-[2.2/1.2] shrink-0 print:border print:border-slate-300 print:shadow-none print:rounded-none"
+                      className={`bulk-grid-label-card bg-white border border-slate-200 rounded-xl flex flex-col items-center text-center shadow-3xs aspect-[2.2/1.2] shrink-0 print:border print:border-slate-300 print:shadow-none print:rounded-none ${
+                        isMinimal ? 'justify-center p-4 gap-2' : 'justify-between p-3'
+                      }`}
                       style={{
                         transform: `scale(${bulkScale})`,
                         transformOrigin: 'top center',
@@ -442,39 +489,39 @@ export default function BulkPrintModal({
                         breakInside: 'avoid',
                       }}
                     >
-                      {bulkShowTitle && (
+                      {(isMinimal || bulkShowTitle) && (
                         <p className={`text-[10px] font-extrabold truncate w-full leading-tight ${
                           fabric.name ? 'text-slate-955' : 'text-slate-400 italic'
                         }`}>
                           {fabric.name || 'Unnamed Fabric'}
                         </p>
                       )}
-                      {bulkShowRef && (
+                      {!isMinimal && bulkShowRef && (
                         <p className="text-[7px] font-mono text-slate-400 font-bold uppercase tracking-wider mt-0.5">
                           ID: {fabric.qr_code_id}
                         </p>
                       )}
 
                       {/* Code placement inside card */}
-                      <div className="flex items-center justify-center gap-3 w-full my-1.5">
-                        {bulkShow2D && fabric.qr_code_id && (
+                      <div className={`flex items-center justify-center gap-3 w-full ${isMinimal ? '' : 'my-1.5'}`}>
+                        {fabric.qr_code_id && (isMinimal ? bulkMinimalCodeKind === '2d' : bulkShow2D) && (
                           <div className="p-0.5 bg-white border border-slate-150 rounded shrink-0">
-                            <ScannableCode value={fabric.qr_code_id} type={print2DFormat} scale={1} />
+                            <ScannableCode value={fabric.qr_code_id} type={print2DFormat} scale={isMinimal ? 1.35 : 1} />
                           </div>
                         )}
-                        {bulkShow1D && fabric.qr_code_id && (
-                          <div className="scale-75 origin-center shrink-0">
+                        {fabric.qr_code_id && (isMinimal ? bulkMinimalCodeKind === '1d' : bulkShow1D) && (
+                          <div className={`${isMinimal ? 'max-w-full overflow-hidden' : 'scale-75'} origin-center shrink-0`}>
                             <ScannableCode
                               value={fabric.qr_code_id}
                               type={print1DFormat}
-                              scale={0.8}
-                              height={6}
+                              scale={isMinimal ? 0.9 : 0.8}
+                              height={isMinimal ? 9 : 6}
                             />
                           </div>
                         )}
                       </div>
 
-                      {bulkShowFooter && (
+                      {!isMinimal && bulkShowFooter && (
                         <div className="w-full border-t border-slate-100 pt-1 flex justify-between items-center leading-none">
                           <span className="text-[6.5px] font-bold text-slate-400 uppercase tracking-widest">
                             {fabric.team_name

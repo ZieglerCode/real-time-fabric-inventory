@@ -21,7 +21,7 @@ interface GalleryOverlayProps {
   galleryActiveIndex: number;
   setGalleryActiveIndex: (index: number | null) => void;
   filteredFabrics: Fabric[];
-  setActivePrintFabric: (fabric: any) => void;
+  setActivePrintFabric?: (fabric: any) => void;
 }
 
 export default function GalleryOverlay({
@@ -249,7 +249,7 @@ export default function GalleryOverlay({
 
           {/* Actions shelf */}
           <div className="mt-8 pt-4 border-t border-white/10 flex flex-col gap-3">
-            {activeFabric.status === 'completed' && activeFabric.qr_code_id ? (
+            {setActivePrintFabric && activeFabric.status === 'completed' && activeFabric.qr_code_id ? (
               <button
                 onClick={() => setActivePrintFabric(activeFabric)}
                 className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 bg-indigo-650 hover:bg-indigo-750 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-indigo-905/35 border-b border-indigo-850 cursor-pointer"
@@ -257,7 +257,7 @@ export default function GalleryOverlay({
                 <Printer className="h-4 w-4" />
                 <span>Print sticker label</span>
               </button>
-            ) : (
+            ) : setActivePrintFabric ? (
               <button
                 disabled
                 className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 bg-slate-800 text-slate-500 border border-slate-700 rounded-xl text-xs font-bold cursor-not-allowed"
@@ -265,7 +265,7 @@ export default function GalleryOverlay({
                 <Printer className="h-4 w-4" />
                 <span>Print sticker label</span>
               </button>
-            )}
+            ) : null}
 
             <button
               onClick={() =>

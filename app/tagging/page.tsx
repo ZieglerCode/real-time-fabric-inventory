@@ -17,6 +17,7 @@ import FabricImagePreview from '@/components/fabric-image-preview';
 import LabelingForm from '@/components/labeling-form';
 import DirectPrinterPanel from '@/components/direct-printer-panel';
 import DigitizationHistory from '@/components/digitization-history';
+import GalleryOverlay from '@/components/gallery-overlay';
 
 // Define the fabric schema
 interface Fabric {
@@ -199,6 +200,7 @@ function TaggingPageContent() {
   const [fabrics, setFabrics] = useState<Fabric[]>([]);
   const [completedFabrics, setCompletedFabrics] = useState<Fabric[]>([]);
   const [activeFabric, setActiveFabric] = useState<Fabric | null>(null);
+  const [historyGalleryActiveIndex, setHistoryGalleryActiveIndex] = useState<number | null>(null);
   const [fabricName, setFabricName] = useState<string>('');
   const [isDiscarding, setIsDiscarding] = useState<boolean>(false);
   const [rejectionReason, setRejectionReason] = useState<string>('');
@@ -891,10 +893,24 @@ function TaggingPageContent() {
             completedFabrics={completedFabrics}
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
+            onFabricClick={(fabric) => {
+              const index = completedFabrics.findIndex((item) => item.id === fabric.id);
+              if (index >= 0) {
+                setHistoryGalleryActiveIndex(index);
+              }
+            }}
           />
 
         </div>
       </div>
+
+      {historyGalleryActiveIndex !== null && (
+        <GalleryOverlay
+          galleryActiveIndex={historyGalleryActiveIndex}
+          setGalleryActiveIndex={setHistoryGalleryActiveIndex}
+          filteredFabrics={completedFabrics}
+        />
+      )}
 
       {/* PRINT STYLING INJECTIONS */}
       <style jsx global>{`

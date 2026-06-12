@@ -9,7 +9,7 @@ import {
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/use-auth';
-import { usePrinter, PrinterLanguage } from '@/hooks/use-printer';
+import { LabelCodeKind, LabelLayout, usePrinter, PrinterLanguage } from '@/hooks/use-printer';
 import ScannableCode, { CodeType } from '@/components/scannable-code';
 import GalleryOverlay from '@/components/gallery-overlay';
 import SinglePrintModal from '@/components/single-print-modal';
@@ -96,6 +96,8 @@ export default function DigitizationLogPage() {
   const [bulkShow1D, setBulkShow1D] = useState(true);
   const [bulkShowFooter, setBulkShowFooter] = useState(true);
   const [bulkScale, setBulkScale] = useState<number>(1);
+  const [bulkLabelLayout, setBulkLabelLayout] = useState<LabelLayout>('standard');
+  const [bulkMinimalCodeKind, setBulkMinimalCodeKind] = useState<LabelCodeKind>('2d');
 
   // Direct printing stream states
   const [isPrintingBulk, setIsPrintingBulk] = useState(false);
@@ -146,7 +148,9 @@ export default function DigitizationLogPage() {
         const labelData = {
           name: fabric.name || 'Unnamed Fabric',
           qrCodeId: fabric.qr_code_id || '',
-          sessionCode: fabric.session_code || 'SANDBOX'
+          sessionCode: fabric.session_code || 'SANDBOX',
+          layout: bulkLabelLayout,
+          codeKind: bulkMinimalCodeKind
         };
         
         const success = await printDirect(labelData, !isConfigured);
@@ -375,6 +379,13 @@ export default function DigitizationLogPage() {
     return queryMatch && teamMatch && sessionFilterMatch && statusMatch;
   });
 
+  const openFabricDetails = (fabric: Fabric) => {
+    const index = filteredFabrics.findIndex(item => item.id === fabric.id);
+    if (index >= 0) {
+      setGalleryActiveIndex(index);
+    }
+  };
+
   const getStats = () => {
     return {
       total: fabrics.length,
@@ -384,7 +395,7 @@ export default function DigitizationLogPage() {
     };
   };
 
-  const handlePrintLabel = async () => {
+  const handlePrintLabel = async (options?: { layout?: LabelLayout; codeKind?: LabelCodeKind }) => {
     if (printerMode === 'browser') {
       window.print();
     } else {
@@ -392,7 +403,9 @@ export default function DigitizationLogPage() {
       const labelData = {
         name: activePrintFabric.name || 'Unnamed Fabric',
         qrCodeId: activePrintFabric.qr_code_id || '',
-        sessionCode: activePrintFabric.session_code || 'SANDBOX'
+        sessionCode: activePrintFabric.session_code || 'SANDBOX',
+        layout: options?.layout,
+        codeKind: options?.codeKind
       };
       await printDirect(labelData, !isConfigured);
     }
@@ -631,13 +644,27 @@ export default function DigitizationLogPage() {
                   </thead>
                   <tbody className="divide-y divide-slate-150 text-xs">
                     {filteredFabrics.map((fabric) => (
-                      <tr key={fabric.id} className={`hover:bg-slate-50/30 transition-colors ${selectedFabricIds.includes(fabric.id) ? 'bg-indigo-50/20' : ''}`}>
+                      <tr
+                        key={fabric.id}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => openFabricDetails(fabric)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            openFabricDetails(fabric);
+                          }
+                        }}
+                        className={`hover:bg-slate-50/60 transition-colors cursor-pointer focus:outline-none focus:bg-indigo-50/40 ${selectedFabricIds.includes(fabric.id) ? 'bg-indigo-50/20' : ''}`}
+                        title="Open fabric details"
+                      >
                         {/* Checkbox cell */}
                         <td className="py-4 pl-6 text-center w-12">
                           {fabric.status === 'completed' && fabric.qr_code_id ? (
                             <input
                               type="checkbox"
                               checked={selectedFabricIds.includes(fabric.id)}
+                              onClick={(e) => e.stopPropagation()}
                               onChange={() => toggleSelectFabric(fabric.id)}
                               className="h-4.5 w-4.5 text-indigo-650 border-slate-300 rounded focus:ring-indigo-500 cursor-pointer"
                             />
@@ -651,7 +678,6 @@ export default function DigitizationLogPage() {
                         {/* Photo Thumbnail */}
                         <td className="py-4 pl-2">
                           <div 
-                            onClick={() => setGalleryActiveIndex(filteredFabrics.findIndex(f => f.id === fabric.id))}
                             className="h-14 w-14 rounded-xl overflow-hidden bg-slate-50 border border-slate-200 shadow-inner relative group/thumb cursor-pointer hover:border-indigo-400 transition-all"
                           >
                             <img 
@@ -730,7 +756,10 @@ export default function DigitizationLogPage() {
                         <td className="py-4 text-right pr-6">
                           {fabric.status === 'completed' && fabric.qr_code_id ? (
                             <button
-                              onClick={() => setActivePrintFabric(fabric)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActivePrintFabric(fabric);
+                              }}
                               className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-650 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100/70 px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
                             >
                               <Printer className="h-3.5 w-3.5" />
@@ -755,7 +784,20 @@ export default function DigitizationLogPage() {
               {/* Mobile Card List View (visible on screen sizes below lg) */}
               <div className="lg:hidden divide-y divide-slate-150">
                 {filteredFabrics.map((fabric) => (
-                  <div key={fabric.id} className={`p-5 space-y-4 hover:bg-slate-50/20 transition-colors relative ${selectedFabricIds.includes(fabric.id) ? 'bg-indigo-50/10' : ''}`}>
+                  <div
+                    key={fabric.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => openFabricDetails(fabric)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        openFabricDetails(fabric);
+                      }
+                    }}
+                    className={`p-5 space-y-4 hover:bg-slate-50/60 transition-colors relative cursor-pointer focus:outline-none focus:bg-indigo-50/40 ${selectedFabricIds.includes(fabric.id) ? 'bg-indigo-50/10' : ''}`}
+                    title="Open fabric details"
+                  >
                     {/* Top segment: Image & Details */}
                     <div className="flex gap-4 items-start">
                       {fabric.status === 'completed' && fabric.qr_code_id && (
@@ -763,13 +805,13 @@ export default function DigitizationLogPage() {
                           <input
                             type="checkbox"
                             checked={selectedFabricIds.includes(fabric.id)}
+                            onClick={(e) => e.stopPropagation()}
                             onChange={() => toggleSelectFabric(fabric.id)}
                             className="h-5 w-5 text-indigo-650 border-slate-300 rounded focus:ring-indigo-500 cursor-pointer"
                           />
                         </div>
                       )}
                       <div 
-                        onClick={() => setGalleryActiveIndex(filteredFabrics.findIndex(f => f.id === fabric.id))}
                         className="h-16 w-16 rounded-xl overflow-hidden bg-slate-50 border border-slate-200 shadow-inner shrink-0 relative cursor-pointer hover:border-indigo-400 transition-all group/m-thumb"
                       >
                         <img 
@@ -841,7 +883,10 @@ export default function DigitizationLogPage() {
                       <div>
                         {fabric.status === 'completed' && fabric.qr_code_id ? (
                           <button
-                            onClick={() => setActivePrintFabric(fabric)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActivePrintFabric(fabric);
+                            }}
                             className="inline-flex items-center gap-1.5 text-[11px] font-bold text-indigo-650 bg-indigo-50 active:bg-indigo-100 px-3 py-2 rounded-xl transition-colors cursor-pointer border border-indigo-100/50"
                           >
                             <Printer className="h-3.5 w-3.5" />
@@ -941,6 +986,10 @@ export default function DigitizationLogPage() {
         setBulkShowFooter={setBulkShowFooter}
         bulkScale={bulkScale}
         setBulkScale={setBulkScale}
+        bulkLabelLayout={bulkLabelLayout}
+        setBulkLabelLayout={setBulkLabelLayout}
+        bulkMinimalCodeKind={bulkMinimalCodeKind}
+        setBulkMinimalCodeKind={setBulkMinimalCodeKind}
         isPrintingBulk={isPrintingBulk}
         bulkPrintProgress={bulkPrintProgress}
         printerMode={printerMode}

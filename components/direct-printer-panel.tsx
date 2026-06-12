@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { CheckCircle2, Printer, Usb, Bluetooth, AlertCircle, Loader2 } from 'lucide-react';
-import { usePrinter, PrinterLanguage } from '@/hooks/use-printer';
+import { LabelCodeKind, LabelLayout, usePrinter, PrinterLanguage } from '@/hooks/use-printer';
 import ScannableCode, { CodeType } from '@/components/scannable-code';
 
 interface DirectPrinterPanelProps {
@@ -50,6 +50,8 @@ export default function DirectPrinterPanel({
   // Code visibility toggles — max 2 per sticker
   const [show2D, setShow2D] = useState(true);
   const [show1D, setShow1D] = useState(true);
+  const [labelLayout, setLabelLayout] = useState<LabelLayout>('standard');
+  const [minimalCodeKind, setMinimalCodeKind] = useState<LabelCodeKind>('2d');
 
   if (!savedQrData) return null;
 
@@ -60,17 +62,20 @@ export default function DirectPrinterPanel({
       const labelData = {
         name: savedQrData.name || 'Unnamed Fabric',
         qrCodeId: savedQrData.id || '',
-        sessionCode: sessionCode || 'SANDBOX'
+        sessionCode: sessionCode || 'SANDBOX',
+        layout: labelLayout,
+        codeKind: minimalCodeKind
       };
       await printDirect(labelData, connectionStatus === 'local');
     }
   };
 
   // Determine code layout scales based on which codes are shown
-  const both = show2D && show1D;
-  const qrScale = both ? 1.2 : 2;
-  const barScale = both ? 0.8 : 1;
-  const barHeight = both ? 7 : 10;
+  const isMinimal = labelLayout === 'minimal';
+  const both = !isMinimal && show2D && show1D;
+  const qrScale = isMinimal ? 2.1 : both ? 1.2 : 2;
+  const barScale = isMinimal ? 1.05 : both ? 0.8 : 1;
+  const barHeight = isMinimal ? 12 : both ? 7 : 10;
 
   const footerText = savedQrData.teamName
     ? `${savedQrData.teamName} Textile`
@@ -91,20 +96,32 @@ export default function DirectPrinterPanel({
           style={{ width: 288, height: 172 }} /* 2.2in × 1.2in @ 96dpi preview */
         >
           {/* Header: name + ref */}
-          <div className="px-3 pt-2.5 pb-1 text-center w-full min-w-0 shrink-0">
+          <div className={`${isMinimal ? 'px-4 pt-4 pb-1.5' : 'px-3 pt-2.5 pb-1'} text-center w-full min-w-0 shrink-0`}>
             <p className={`text-[11px] font-extrabold leading-tight truncate ${
               savedQrData.name ? 'text-slate-950' : 'text-slate-400 italic'
             }`}>
               {savedQrData.name || 'Unnamed Fabric'}
             </p>
-            <p className="text-[7px] font-mono text-slate-400 font-bold uppercase tracking-wider mt-0.5 truncate">
-              {savedQrData.id}
-            </p>
+            {!isMinimal && (
+              <p className="text-[7px] font-mono text-slate-400 font-bold uppercase tracking-wider mt-0.5 truncate">
+                {savedQrData.id}
+              </p>
+            )}
           </div>
 
           {/* Codes area – grows to fill, clips overflow */}
-          <div className="flex-1 flex items-center justify-center gap-2 px-2 overflow-hidden min-h-0">
-            {!show2D && !show1D ? (
+          <div className={`${isMinimal ? 'pb-4 px-4' : 'px-2'} flex-1 flex items-center justify-center gap-2 overflow-hidden min-h-0`}>
+            {isMinimal ? (
+              minimalCodeKind === '2d' ? (
+                <div className="shrink-0">
+                  <ScannableCode value={savedQrData.id} type={print2DFormat} scale={qrScale} />
+                </div>
+              ) : (
+                <div className="shrink-0 max-w-[246px] overflow-hidden">
+                  <ScannableCode value={savedQrData.id} type={print1DFormat} scale={barScale} height={barHeight} />
+                </div>
+              )
+            ) : !show2D && !show1D ? (
               <p className="text-[9px] text-slate-400 font-medium">No code selected</p>
             ) : both ? (
               /* Both codes: QR square left | slim barcode right */
@@ -130,12 +147,14 @@ export default function DirectPrinterPanel({
           </div>
 
           {/* Footer */}
-          <div className="px-3 pb-2 pt-1 border-t border-slate-100 flex justify-between items-center shrink-0">
-            <span className="text-[6.5px] font-bold text-slate-400 uppercase tracking-widest truncate mr-2">
-              {footerText}
-            </span>
-            <GridIcon />
-          </div>
+          {!isMinimal && (
+            <div className="px-3 pb-2 pt-1 border-t border-slate-100 flex justify-between items-center shrink-0">
+              <span className="text-[6.5px] font-bold text-slate-400 uppercase tracking-widest truncate mr-2">
+                {footerText}
+              </span>
+              <GridIcon />
+            </div>
+          )}
         </div>
       </div>
 
@@ -240,9 +259,44 @@ export default function DirectPrinterPanel({
 
         {/* ── CODE SELECTION ── */}
         <div className="space-y-3">
+          <div>
+            <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Label Layout</h4>
+            <div className="grid grid-cols-2 gap-2 bg-slate-200/50 p-1 rounded-xl">
+              {(['standard', 'minimal'] as const).map((layout) => (
+                <button
+                  key={layout}
+                  type="button"
+                  onClick={() => setLabelLayout(layout)}
+                  className={`py-1.5 text-[10px] font-bold rounded-lg transition-all cursor-pointer ${
+                    labelLayout === layout
+                      ? 'bg-white text-indigo-650 shadow-xs border border-slate-200/50'
+                      : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  {layout === 'standard' ? 'Standard' : 'Minimal'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {isMinimal && (
+            <div>
+              <label className="block text-[9.5px] font-bold text-slate-550 mb-1">Minimal Code</label>
+              <select
+                value={minimalCodeKind}
+                onChange={(e) => setMinimalCodeKind(e.target.value as LabelCodeKind)}
+                className="w-full bg-white border border-slate-200 rounded-xl text-xs font-semibold px-2.5 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer text-slate-700"
+              >
+                <option value="2d">2D Code only</option>
+                <option value="1d">1D Barcode only</option>
+              </select>
+            </div>
+          )}
+
           <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Codes on Sticker</h4>
 
           {/* Toggle buttons for show/hide each code */}
+          {!isMinimal && (
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
@@ -269,6 +323,7 @@ export default function DirectPrinterPanel({
               1D Barcode
             </button>
           </div>
+          )}
 
           {/* Format selectors — only shown when the code is active */}
           <div className="grid grid-cols-2 gap-3">

@@ -22,12 +22,14 @@ interface DigitizationHistoryProps {
   completedFabrics: Fabric[];
   searchQuery: string;
   setSearchQuery: (query: string) => void;
+  onFabricClick?: (fabric: Fabric) => void;
 }
 
 export default function DigitizationHistory({
   completedFabrics,
   searchQuery,
-  setSearchQuery
+  setSearchQuery,
+  onFabricClick
 }: DigitizationHistoryProps) {
   const filteredCompletedFabrics = completedFabrics.filter(fabric => {
     const nameMatch = fabric.name?.toLowerCase().includes(searchQuery.toLowerCase()) || false;
@@ -67,7 +69,12 @@ export default function DigitizationHistory({
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {filteredCompletedFabrics.slice(0, 6).map((item) => (
-            <div key={item.id} className="bg-slate-50/60 border border-slate-200/80 p-3 rounded-xl flex items-center gap-3">
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => onFabricClick?.(item)}
+              className="bg-slate-50/60 border border-slate-200/80 p-3 rounded-xl flex items-center gap-3 text-left transition-all cursor-pointer hover:bg-indigo-50/40 hover:border-indigo-200 hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+            >
               <div className="h-10 w-10 overflow-hidden rounded-lg bg-slate-100 shrink-0 border border-slate-200">
                 <img src={item.image_url} alt="Historic log preview" className="object-cover h-full w-full" />
               </div>
@@ -81,7 +88,7 @@ export default function DigitizationHistory({
               <div className="bg-white p-0.5 rounded-md shrink-0 border border-slate-200">
                 <QRCodeSVG value={item.qr_code_id || ''} size={28} />
               </div>
-            </div>
+            </button>
           ))}
         </div>
       )}

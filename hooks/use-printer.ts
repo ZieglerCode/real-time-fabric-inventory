@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { compileLabel, type PrinterLanguage } from '@/lib/printer-commands';
-export type { PrinterLanguage };
+import { compileLabel, type LabelData, type PrinterLanguage } from '@/lib/printer-commands';
+export type { LabelCodeKind, LabelData, LabelLayout, PrinterLanguage } from '@/lib/printer-commands';
 
 export type PrinterConnectionMode = 'browser' | 'usb' | 'bluetooth';
 export type PrinterStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
@@ -109,7 +109,7 @@ export function usePrinter() {
   };
 
   const printDirect = async (
-    labelData: { name: string; qrCodeId: string; sessionCode: string },
+    labelData: LabelData,
     isSandbox = false
   ): Promise<boolean> => {
     setErrorMsg('');
