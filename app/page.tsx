@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { 
   Camera, Laptop, Layers, Printer, CheckCircle2, ArrowRight, 
-  Cpu, Compass, ShieldAlert, Sparkles, MoveRight, HelpCircle
+  Cpu, Compass, ShieldAlert, Sparkles, MoveRight, HelpCircle,
+  Webhook, Database, Zap, Code, ArrowUpRight, Check, Play, RefreshCw
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 
@@ -16,21 +17,32 @@ const textRevealVariant = {
     opacity: 1,
     y: 0,
     transition: {
-      delay: i * 0.15,
+      delay: i * 0.1,
       duration: 0.8,
-      ease: [0.16, 1, 0.3, 1] as any, // Custom premium ease-out cubic
+      ease: [0.16, 1, 0.3, 1] as any, // Premium ease-out cubic
     },
   }),
 };
 
+// Animation variants for container staggering
+const containerVariant = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1,
+    },
+  },
+};
+
 // Animation variants for cards sliding in on scroll
 const scrollRevealVariant = {
-  hidden: { opacity: 0, y: 40 },
+  hidden: { opacity: 0, y: 30 },
   visible: {
     opacity: 1,
     y: 0,
     transition: {
-      duration: 0.8,
+      duration: 0.7,
       ease: [0.16, 1, 0.3, 1] as any,
     },
   },
@@ -57,6 +69,12 @@ export default function LandingPage() {
         </div>
 
         <div className="flex items-center gap-4">
+          <Link
+            href="/docs"
+            className="text-xs font-bold text-slate-500 hover:text-slate-900 transition-colors px-3 py-2"
+          >
+            API & Docs
+          </Link>
           {isConfigured && user ? (
             <Link
               href="/dashboard"
@@ -88,10 +106,10 @@ export default function LandingPage() {
           <motion.div 
             custom={0}
             variants={textRevealVariant}
-            className="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-50 border border-indigo-100 rounded-full text-indigo-700 text-xs font-semibold uppercase tracking-wider mb-2"
+            className="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-50 border border-indigo-100 rounded-full text-indigo-750 text-xs font-semibold uppercase tracking-wider mb-2"
           >
             <Sparkles className="h-3.5 w-3.5" />
-            <span>Digital Textile Workflow</span>
+            <span>Digital Textile Workflow + Realtime Sync</span>
           </motion.div>
 
           {/* Main Hero Header */}
@@ -101,7 +119,9 @@ export default function LandingPage() {
             className="text-4xl sm:text-6xl font-extrabold tracking-tight text-slate-900 leading-[1.15]"
           >
             From Loom to Label <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-650 to-violet-650">In Three Seconds</span>
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-650 via-violet-600 to-sky-600">
+              Synchronized Everywhere
+            </span>
           </motion.h1>
 
           {/* Subtext */}
@@ -110,7 +130,7 @@ export default function LandingPage() {
             variants={textRevealVariant}
             className="text-lg text-slate-500 max-w-2xl mx-auto font-medium leading-relaxed"
           >
-            Streamline physical fabric cataloging. Match instantaneous mobile camera uploads with desktop tagging, and print barcode stickers on the fly.
+            Streamline physical fabric cataloging. Match instantaneous mobile camera uploads with desktop tagging, and print barcode stickers on the fly. Now fully equipped with realtime webhooks and batch APIs.
           </motion.p>
 
           {/* CTA Buttons */}
@@ -126,12 +146,13 @@ export default function LandingPage() {
               <span>{user ? "Go to Dashboard" : "Enter Platform"}</span>
               <ArrowRight className="h-5 w-5" />
             </Link>
-            <a
-              href="#workflow"
+            <Link
+              href="/docs"
               className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-4.5 border border-slate-200 hover:border-slate-350 bg-white hover:bg-slate-50 text-slate-650 rounded-2xl font-bold transition-all shadow-xs cursor-pointer"
             >
-              <span>See How it Works</span>
-            </a>
+              <Code className="h-4.5 w-4.5" />
+              <span>Explore Developer APIs</span>
+            </Link>
           </motion.div>
         </motion.div>
 
@@ -139,7 +160,7 @@ export default function LandingPage() {
         <motion.div
           initial={{ opacity: 0, y: 60 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6, duration: 1, ease: [0.16, 1, 0.3, 1] }}
+          transition={{ delay: 0.5, duration: 1, ease: [0.16, 1, 0.3, 1] }}
           className="mt-16 max-w-5xl mx-auto bg-white/40 backdrop-blur-md border border-slate-200/50 rounded-3xl p-4 shadow-xl"
         >
           <div className="rounded-2xl overflow-hidden bg-slate-900 border border-slate-800 shadow-inner aspect-[16/9] relative flex items-center justify-center p-6 text-white group">
@@ -242,7 +263,7 @@ export default function LandingPage() {
             <div className="h-12 w-12 rounded-2xl bg-violet-50 border border-violet-100 flex items-center justify-center text-violet-650 mb-6 group-hover:scale-105 transition-transform">
               <Laptop className="h-6 w-6" />
             </div>
-            <h3 className="text-lg font-bold text-slate-900 mb-2">Collaborative Labeling</h3>
+            <h3 className="text-lg font-bold text-slate-900 mb-2">Collaborative Labeling Desk</h3>
             <p className="text-slate-500 text-xs leading-relaxed font-medium">
               Dashboard views sync instantly. Review incoming uploads, label fabric specifications, and flag bad lighting or blurry photos in real-time.
             </p>
@@ -259,11 +280,110 @@ export default function LandingPage() {
             <div className="h-12 w-12 rounded-2xl bg-sky-50 border border-sky-100 flex items-center justify-center text-sky-650 mb-6 group-hover:scale-105 transition-transform">
               <Printer className="h-6 w-6" />
             </div>
-            <h3 className="text-lg font-bold text-slate-900 mb-2">Automated Barcode stickers</h3>
+            <h3 className="text-lg font-bold text-slate-900 mb-2">Automated Barcode Tags</h3>
             <p className="text-slate-500 text-xs leading-relaxed font-medium">
               Create printable barcode tags with custom naming instantly. Slap stickers on physical fabric rolls for efficient store inventory auditing.
             </p>
           </motion.div>
+        </div>
+      </section>
+
+      {/* NEW SECTION: Integrations & Automation Hub */}
+      <section className="bg-slate-900 text-white py-24 relative overflow-hidden">
+        {/* Glowing aura */}
+        <div className="absolute top-1/2 left-1/2 w-[600px] h-[600px] bg-indigo-500/10 rounded-full blur-3xl pointer-events-none -translate-x-1/2 -translate-y-1/2" />
+        
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 items-center">
+            
+            {/* Left Column: Description */}
+            <div className="lg:col-span-5 space-y-6">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-500/10 border border-indigo-500/20 rounded-full text-indigo-300 text-xs font-bold uppercase tracking-wider">
+                <Zap className="h-3.5 w-3.5" />
+                <span>Automations & APIs</span>
+              </div>
+              <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white leading-tight">
+                Connect and Automate Your Entire Warehouse
+              </h2>
+              <p className="text-slate-300 text-sm leading-relaxed font-medium">
+                Unsere offene Entwicklerschnittstelle integriert deinen Digitalisierungs-Desk direkt in deine ERP-Software, Shopify, Zapier oder Make.com.
+              </p>
+              
+              <ul className="space-y-3 pt-2 text-xs font-bold text-slate-350">
+                <li className="flex items-center gap-2.5">
+                  <Check className="h-4.5 w-4.5 text-indigo-400 shrink-0" />
+                  <span>Echtzeit-Webhooks bei Fertigstellung oder Ausschluss</span>
+                </li>
+                <li className="flex items-center gap-2.5">
+                  <Check className="h-4.5 w-4.5 text-indigo-400 shrink-0" />
+                  <span>Bulk APIs für schnellen Massen-Stoff-Import</span>
+                </li>
+                <li className="flex items-center gap-2.5">
+                  <Check className="h-4.5 w-4.5 text-indigo-400 shrink-0" />
+                  <span>Zapier & Make native connection test endpoints</span>
+                </li>
+              </ul>
+              
+              <div className="pt-4">
+                <Link
+                  href="/docs"
+                  className="inline-flex items-center gap-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-5 py-3 rounded-xl shadow-md transition-all cursor-pointer"
+                >
+                  <span>API Dokumentation ansehen</span>
+                  <ArrowUpRight className="h-4 w-4" />
+                </Link>
+              </div>
+            </div>
+
+            {/* Right Column: Interactive Console Simulation */}
+            <div className="lg:col-span-7 bg-slate-950 border border-slate-800 rounded-2xl p-5 shadow-2xl relative">
+              <div className="flex items-center justify-between border-b border-slate-900 pb-3 mb-4">
+                <div className="flex items-center gap-1.5">
+                  <span className="h-2.5 w-2.5 rounded-full bg-rose-500" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-amber-500" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                  <span className="text-[10px] text-slate-500 font-mono ml-2">realtime_webhooks.log</span>
+                </div>
+                <div className="text-[10px] font-bold text-emerald-400 flex items-center gap-1">
+                  <span className="h-1.5 w-1.5 bg-emerald-500 rounded-full animate-ping" />
+                  <span>LIVE RECEIVER</span>
+                </div>
+              </div>
+
+              <div className="space-y-4 font-mono text-[11px] text-slate-300">
+                {/* Console log 1 */}
+                <div className="space-y-1">
+                  <span className="text-slate-600">[20:24:01]</span> <span className="text-indigo-400 font-bold">INFO:</span> <span>Waiting for events...</span>
+                </div>
+
+                {/* Console log 2 */}
+                <div className="space-y-1 bg-indigo-950/20 border border-indigo-900/40 rounded-xl p-3">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-indigo-400 font-bold">⚡ EVENT RECEIVED: fabric.completed</span>
+                    <span className="text-slate-500">200 OK</span>
+                  </div>
+                  <pre className="text-[10px] text-slate-400 mt-2 overflow-x-auto">
+{`{
+  "event": "fabric.completed",
+  "timestamp": "2026-06-12T20:24:05Z",
+  "data": {
+    "qr_code_id": "FABRIC-8A7B6C5D",
+    "name": "Indigo Herringbone Linen",
+    "color": "Indigo",
+    "material": "Linen"
+  }
+}`}
+                  </pre>
+                </div>
+
+                {/* Console log 3 */}
+                <div className="space-y-1">
+                  <span className="text-slate-600">[20:24:10]</span> <span className="text-violet-400 font-bold">POST</span> <span className="text-slate-400">/api/v1/fabrics/bulk - Batch loaded 50 rolls</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
         </div>
       </section>
 
@@ -316,9 +436,9 @@ export default function LandingPage() {
             >
               <div className="h-10 w-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-650 shrink-0 font-bold">2</div>
               <div className="space-y-1">
-                <h4 className="font-bold text-slate-900 text-sm">Label Details</h4>
+                <h4 className="font-bold text-slate-900 text-sm">Label Details & Auto-AI Suggestions</h4>
                 <p className="text-slate-500 text-xs leading-relaxed">
-                  The desktop labeling operator edits the catalog name of the swatch, binds it, or discards blurry photos to prompt a mobile retake alert.
+                  The desktop labeling operator edits the catalog name. Deep learning suggestions auto-fill color, pattern, and material attributes dynamically.
                 </p>
               </div>
             </motion.div>
@@ -333,9 +453,9 @@ export default function LandingPage() {
             >
               <div className="h-10 w-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-650 shrink-0 font-bold">3</div>
               <div className="space-y-1">
-                <h4 className="font-bold text-slate-900 text-sm">Print Barcode Tag</h4>
+                <h4 className="font-bold text-slate-900 text-sm">Print & Sync (Webhooks)</h4>
                 <p className="text-slate-500 text-xs leading-relaxed">
-                  An automatic barcode and QR layout is compiled. Print the tag on sticker labels, paste it onto physical inventory fabric rolls, and track with any barcode scanner.
+                  Print custom barcode tags on sticker labels for physical rolls. Webhook subscriptions immediately dispatch the saved record to all connected ERP systems.
                 </p>
               </div>
             </motion.div>
@@ -362,13 +482,19 @@ export default function LandingPage() {
             <p className="text-sm text-indigo-200/80 font-medium leading-relaxed max-w-lg mx-auto">
               Get your warehouse up and running with a production-ready, multi-user system. Lock down uploads, audit catalog changes, and search catalog archives.
             </p>
-            <div className="pt-2">
+            <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-4">
               <Link
                 href={user ? "/dashboard" : "/login"}
-                className="inline-flex items-center gap-2 px-8 py-4 bg-white hover:bg-slate-50 text-indigo-950 rounded-2xl font-bold shadow-md transition-all cursor-pointer group"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-4 bg-white hover:bg-slate-50 text-indigo-950 rounded-2xl font-bold shadow-md transition-all cursor-pointer group"
               >
                 <span>{user ? "Access Dashboard" : "Sign In & Get Started"}</span>
                 <ArrowRight className="h-5 w-5 text-indigo-950 group-hover:translate-x-1 transition-transform" />
+              </Link>
+              <Link
+                href="/docs"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-4 bg-slate-900/50 hover:bg-slate-900 border border-slate-700 text-white rounded-2xl font-bold shadow-md transition-all cursor-pointer"
+              >
+                <span>Read API Reference</span>
               </Link>
             </div>
           </div>

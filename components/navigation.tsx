@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Camera, Laptop, Layers, LogOut, User, Menu, X, Users, Compass, AlertCircle, History } from 'lucide-react';
+import { Camera, Laptop, Layers, LogOut, User, Menu, X, Users, Compass, AlertCircle, History, Code } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 
 export default function Navigation({ children }: { children: React.ReactNode }) {
@@ -33,7 +33,7 @@ export default function Navigation({ children }: { children: React.ReactNode }) 
   }, []);
 
   // Don't show navigation on landing page or login page
-  const isAuthPage = pathname === '/login' || pathname === '/' || pathname.startsWith('/public');
+  const isAuthPage = pathname === '/login' || pathname === '/' || pathname === '/docs' || pathname.startsWith('/public');
   if (isAuthPage) {
     return <>{children}</>;
   }
@@ -65,6 +65,12 @@ export default function Navigation({ children }: { children: React.ReactNode }) 
       href: '/log',
       icon: History,
       active: pathname === '/log',
+    },
+    {
+      name: 'Developer API',
+      href: '/docs',
+      icon: Code,
+      active: pathname === '/docs',
     },
   ];
 
