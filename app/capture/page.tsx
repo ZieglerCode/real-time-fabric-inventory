@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback, Suspense } from 'react';
-import { Camera, CheckCircle2, RefreshCw, AlertCircle, ArrowLeft, Loader2, Compass, Ban, User, ShieldAlert, Trash2 } from 'lucide-react';
+import { Camera, CheckCircle2, RefreshCw, AlertCircle, ArrowLeft, Loader2, Compass, Ban, User, ShieldAlert, Trash2, Tag, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
@@ -46,10 +46,13 @@ function CapturePageContent() {
   const [capturedCount, setCapturedCount] = useState<number>(0);
   const [errorText, setErrorText] = useState<string>('');
   
-  // Photo preview states
+  // Photo preview & multi-step states
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [rejectionAlert, setRejectionAlert] = useState<{ id: string; reason: string; timestamp: string } | null>(null);
+  // 'preview' = show snapshot, 'label' = add optional title step
+  const [captureStep, setCaptureStep] = useState<'preview' | 'label'>('preview');
+  const [fabricTitle, setFabricTitle] = useState<string>('');
 
   // Stack list states
   const [sessionFabrics, setSessionFabrics] = useState<Fabric[]>([]);
@@ -360,7 +363,7 @@ function CapturePageContent() {
     }
   };
 
-  const uploadPhoto = async (file: File) => {
+  const uploadPhoto = async (file: File, name?: string) => {
     if (!sessionId) return;
     setUploading(true);
     setUploadProgress(20);
@@ -393,11 +396,12 @@ function CapturePageContent() {
 
         setUploadProgress(85);
 
-        // 3. Insert metadata with session association
+        // 3. Insert metadata with session association (+ optional photographer-provided name)
         const { error: dbError } = await supabase
           .from('fabrics')
           .insert({
             image_url: publicUrl,
+            name: name?.trim() || null,
             status: 'pending',
             created_by: user?.id,
             created_by_email: user?.email,
@@ -421,7 +425,7 @@ function CapturePageContent() {
         const newRecord = {
           id: `demo-uuid-${Date.now()}`,
           image_url: demoImageUrl,
-          name: null,
+          name: name?.trim() || null,
           qr_code_id: null,
           status: 'pending',
           created_at: new Date().toISOString(),
@@ -587,54 +591,146 @@ function CapturePageContent() {
               </div>
             </div>
           ) : previewUrl ? (
-            <div className="bg-white rounded-3xl p-5 border border-indigo-100 shadow-md space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-50 border border-indigo-100 rounded-full text-indigo-700 text-[10px] uppercase font-bold">
-                  📷 Review Snapshot
-                </span>
+            <div className="bg-white rounded-3xl border border-indigo-100 shadow-md overflow-hidden">
+              {/* Step indicator */}
+              <div className="flex items-center border-b border-slate-100 px-4 py-2.5">
+                <div className="flex items-center gap-2 flex-1">
+                  <div className={`h-5 w-5 rounded-full flex items-center justify-center text-[9px] font-extrabold border transition-all ${
+                    captureStep === 'preview'
+                      ? 'bg-indigo-650 border-indigo-650 text-white'
+                      : 'bg-emerald-500 border-emerald-500 text-white'
+                  }`}>1</div>
+                  <span className={`text-[9.5px] font-bold uppercase tracking-wider transition-colors ${
+                    captureStep === 'preview' ? 'text-indigo-700' : 'text-emerald-600'
+                  }`}>Review</span>
+                  <div className="h-px flex-1 bg-slate-150 mx-1" />
+                  <div className={`h-5 w-5 rounded-full flex items-center justify-center text-[9px] font-extrabold border transition-all ${
+                    captureStep === 'label'
+                      ? 'bg-indigo-650 border-indigo-650 text-white'
+                      : 'bg-slate-200 border-slate-200 text-slate-400'
+                  }`}>2</div>
+                  <span className={`text-[9.5px] font-bold uppercase tracking-wider transition-colors ${
+                    captureStep === 'label' ? 'text-indigo-700' : 'text-slate-400'
+                  }`}>Beschriften</span>
+                  <div className="h-px flex-1 bg-slate-150 mx-1" />
+                  <div className="h-5 w-5 rounded-full flex items-center justify-center text-[9px] font-extrabold border bg-slate-200 border-slate-200 text-slate-400">3</div>
+                  <span className="text-[9.5px] font-bold uppercase tracking-wider text-slate-400">Fertig</span>
+                </div>
                 <button
                   onClick={() => {
                     setSelectedFile(null);
                     setPreviewUrl(null);
+                    setCaptureStep('preview');
+                    setFabricTitle('');
                   }}
-                  className="text-xs text-slate-400 hover:text-slate-650 font-bold"
+                  className="text-[10px] text-slate-400 hover:text-slate-650 font-bold ml-3 shrink-0"
                 >
-                  Cancel
+                  Abbrechen
                 </button>
               </div>
-              <div className="rounded-2xl overflow-hidden border border-slate-200 bg-white aspect-video relative shadow-inner">
-                <img 
-                  src={previewUrl} 
-                  alt="Fabric Sample Capture Preview" 
-                  className="object-cover h-full w-full"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3 w-full">
-                <button
-                  onClick={() => {
-                    setSelectedFile(null);
-                    setPreviewUrl(null);
-                    triggerCamera();
-                  }}
-                  className="py-3 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 font-bold rounded-xl text-xs uppercase tracking-wider transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
-                >
-                  <RefreshCw className="h-4 w-4 shrink-0" />
-                  Retake
-                </button>
-                <button
-                  onClick={async () => {
-                    if (selectedFile) {
-                      const fileToUpload = selectedFile;
-                      setSelectedFile(null);
-                      setPreviewUrl(null);
-                      await uploadPhoto(fileToUpload);
-                    }
-                  }}
-                  className="py-3 bg-indigo-650 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs uppercase tracking-wider transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-md shadow-indigo-100 border-b-2 border-indigo-805"
-                >
-                  <CheckCircle2 className="h-4 w-4 shrink-0" />
-                  Confirm
-                </button>
+
+              <div className="p-4 space-y-4">
+                {/* Preview image — always visible, smaller on label step */}
+                <div className={`rounded-2xl overflow-hidden border border-slate-200 bg-white relative shadow-inner transition-all duration-300 ${
+                  captureStep === 'label' ? 'aspect-[4/2]' : 'aspect-video'
+                }`}>
+                  <img
+                    src={previewUrl}
+                    alt="Fabric Sample Capture Preview"
+                    className="object-cover h-full w-full"
+                  />
+                  {captureStep === 'label' && fabricTitle && (
+                    <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 to-transparent px-3 py-2">
+                      <p className="text-white text-[11px] font-bold truncate">{fabricTitle}</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Step 1 — Review */}
+                {captureStep === 'preview' && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      onClick={() => {
+                        setSelectedFile(null);
+                        setPreviewUrl(null);
+                        setCaptureStep('preview');
+                        setFabricTitle('');
+                        triggerCamera();
+                      }}
+                      className="py-3 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 font-bold rounded-xl text-xs uppercase tracking-wider transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <RefreshCw className="h-4 w-4 shrink-0" />
+                      Nochmal
+                    </button>
+                    <button
+                      onClick={() => setCaptureStep('label')}
+                      className="py-3 bg-indigo-650 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs uppercase tracking-wider transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-md shadow-indigo-100 border-b-2 border-indigo-805"
+                    >
+                      <Tag className="h-4 w-4 shrink-0" />
+                      Weiter
+                    </button>
+                  </div>
+                )}
+
+                {/* Step 2 — Label / Beschriften */}
+                {captureStep === 'label' && (
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-[9.5px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+                        Titel <span className="text-slate-350 font-normal normal-case">(optional)</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={fabricTitle}
+                        onChange={(e) => setFabricTitle(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && selectedFile) {
+                            const f = selectedFile;
+                            const t = fabricTitle;
+                            setSelectedFile(null);
+                            setPreviewUrl(null);
+                            setCaptureStep('preview');
+                            setFabricTitle('');
+                            uploadPhoto(f, t);
+                          }
+                        }}
+                        placeholder="z.B. Roter Leinen Stoff..."
+                        maxLength={80}
+                        autoFocus
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-800 placeholder:text-slate-350 focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 transition-all"
+                      />
+                      <p className="text-[9px] text-slate-400 mt-1 font-medium">
+                        Der Tagger kann den Titel später ändern oder ergänzen.
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        onClick={() => setCaptureStep('preview')}
+                        className="py-3 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 font-bold rounded-xl text-xs uppercase tracking-wider transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                      >
+                        <ArrowLeft className="h-4 w-4 shrink-0" />
+                        Zurück
+                      </button>
+                      <button
+                        onClick={async () => {
+                          if (selectedFile) {
+                            const f = selectedFile;
+                            const t = fabricTitle;
+                            setSelectedFile(null);
+                            setPreviewUrl(null);
+                            setCaptureStep('preview');
+                            setFabricTitle('');
+                            await uploadPhoto(f, t);
+                          }
+                        }}
+                        className="py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs uppercase tracking-wider transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-md shadow-emerald-100 border-b-2 border-emerald-800"
+                      >
+                        <CheckCircle2 className="h-4 w-4 shrink-0" />
+                        Bestätigen
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           ) : (
