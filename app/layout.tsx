@@ -12,8 +12,8 @@ const outfit = Outfit({
 
 export const metadata: Metadata = {
   title: {
-    default: 'Fabric Inventory Catalog',
-    template: '%s | Fabric Inventory Catalog',
+    default: 'Inventory Hub',
+    template: '%s | Inventory Hub',
   },
   description: 'Professional fabric inventory digitization and physical sample tracking system. Connect mobile upload stations and labeling desks to archive inventory using barcode stickers.',
   keywords: ['fabric inventory', 'fabric digitization', 'barcode labels', 'textile management', 'inventory tracking'],
@@ -26,13 +26,13 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     locale: 'en_US',
-    title: 'Fabric Inventory Catalog',
+    title: 'Inventory Hub',
     description: 'Professional fabric inventory digitization and physical sample tracking system.',
-    siteName: 'Fabric Inventory Catalog',
+    siteName: 'Inventory Hub',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Fabric Inventory Catalog',
+    title: 'Inventory Hub',
     description: 'Professional fabric inventory digitization and physical sample tracking system.',
   },
 };

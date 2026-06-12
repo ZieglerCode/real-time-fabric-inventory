@@ -76,52 +76,57 @@ export default function Navigation({ children }: { children: React.ReactNode }) 
         <div className="p-4 group-hover:p-6 space-y-8 transition-all duration-300">
           
           {/* Logo Header */}
-          <div className="flex items-center gap-3.5">
-            <div className="h-9 w-9 bg-indigo-650 rounded-xl flex items-center justify-center text-white shadow-md shadow-indigo-200 shrink-0">
+          <div className="flex items-center gap-0 group-hover:gap-3.5 transition-all duration-300">
+            <div className="h-9 w-9 bg-indigo-650 rounded-xl flex items-center justify-center text-white shadow-md shadow-indigo-200 shrink-0 relative">
               <Layers className="h-5 w-5" />
+              {activeSession && (
+                <span className="absolute -top-1 -right-1 h-3 w-3 bg-emerald-500 border-2 border-white rounded-full animate-pulse group-hover:scale-0 transition-transform duration-300" title={`Active session: ${activeSession}`} />
+              )}
             </div>
-            <div className="opacity-0 group-hover:opacity-100 transition-all duration-300 ease-in-out whitespace-nowrap overflow-hidden pointer-events-none">
-              <span className="font-bold tracking-tight text-slate-900 text-sm block leading-none">Ziegler</span>
-              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Inventory Hub</span>
+            <div className="opacity-0 group-hover:opacity-100 max-w-0 group-hover:max-w-40 transition-all duration-300 ease-in-out whitespace-nowrap overflow-hidden pointer-events-none">
+              <span className="font-bold tracking-tight text-slate-900 text-sm block leading-none">Inventory Hub</span>
+              <span className="text-[9.5px] text-slate-400 font-bold uppercase tracking-wider">Ziegler Textile</span>
             </div>
           </div>
 
-          {/* Active Session Status */}
-          {activeSession ? (
-            <div className="bg-indigo-50/70 border border-indigo-100/60 rounded-2xl p-3 group-hover:p-4 space-y-2 relative overflow-hidden transition-all duration-300">
-              <div className="absolute top-0 right-0 w-20 h-20 bg-indigo-200/20 rounded-full blur-xl pointer-events-none" />
-              <div className="flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-                <span className="text-[9px] font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                  Active Workspace
-                </span>
+          {/* Active Session Status card: smooth height and opacity transition */}
+          <div className="max-h-0 opacity-0 overflow-hidden group-hover:max-h-48 group-hover:opacity-100 transition-all duration-300 ease-in-out">
+            {activeSession ? (
+              <div className="mt-4 bg-indigo-50/70 border border-indigo-100/60 rounded-2xl p-4 space-y-2 relative overflow-hidden transition-all duration-300">
+                <div className="absolute top-0 right-0 w-20 h-20 bg-indigo-200/20 rounded-full blur-xl pointer-events-none" />
+                <div className="flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                  <span className="text-[9px] font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap">
+                    Active Workspace
+                  </span>
+                </div>
+                <p className="text-sm font-extrabold text-slate-805 tracking-wide font-mono uppercase whitespace-nowrap overflow-hidden text-ellipsis">
+                  {activeSession}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (confirm('Leave this session and return to main browser?')) {
+                      localStorage.removeItem('ziegler_active_session_code');
+                      localStorage.removeItem('ziegler_active_session_id');
+                      localStorage.removeItem('ziegler_active_session_team_id');
+                      setActiveSession(null);
+                      router.push('/dashboard');
+                    }
+                  }}
+                  className="text-[10px] text-slate-400 hover:text-rose-600 font-bold transition-colors block text-left whitespace-nowrap cursor-pointer"
+                >
+                  Disconnect Session
+                </button>
               </div>
-              <p className="text-xs group-hover:text-sm font-extrabold text-slate-805 tracking-wide font-mono uppercase whitespace-nowrap overflow-hidden text-ellipsis">
-                {activeSession}
-              </p>
-              <button
-                onClick={() => {
-                  if (confirm('Leave this session and return to main browser?')) {
-                    localStorage.removeItem('ziegler_active_session_code');
-                    localStorage.removeItem('ziegler_active_session_id');
-                    localStorage.removeItem('ziegler_active_session_team_id');
-                    setActiveSession(null);
-                    router.push('/dashboard');
-                  }
-                }}
-                className="text-[10px] text-slate-400 hover:text-rose-600 font-bold transition-colors block text-left whitespace-nowrap opacity-0 group-hover:opacity-100 duration-300"
-              >
-                Disconnect Session
-              </button>
-            </div>
-          ) : (
-            <div className="bg-slate-50 border border-slate-100 rounded-2xl p-3 group-hover:p-4 transition-all duration-300 flex items-center justify-center group-hover:justify-start">
-              <p className="text-[10px] text-slate-450 font-bold uppercase tracking-wider leading-relaxed whitespace-nowrap overflow-hidden text-ellipsis">
-                <span className="group-hover:hidden">Offline</span>
-                <span className="hidden group-hover:inline">No active session</span>
-              </p>
-            </div>
-          )}
+            ) : (
+              <div className="mt-4 bg-slate-50 border border-slate-100 rounded-2xl p-4 transition-all duration-300">
+                <p className="text-[10px] text-slate-450 font-bold uppercase tracking-wider leading-relaxed whitespace-nowrap">
+                  No active session
+                </p>
+              </div>
+            )}
+          </div>
 
           {/* Navigation Links */}
           <nav className="space-y-2">
@@ -131,14 +136,14 @@ export default function Navigation({ children }: { children: React.ReactNode }) 
                 <Link
                   key={item.name}
                   href={item.href}
-                  className={`flex items-center gap-3.5 px-3.5 py-3 rounded-xl text-xs font-bold transition-all border ${
+                  className={`flex items-center gap-0 group-hover:gap-3.5 px-3.5 py-3 rounded-xl text-xs font-bold transition-all border ${
                     item.active
                       ? 'bg-indigo-50 text-indigo-750 border-indigo-100/40 shadow-xs'
                       : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50 border-transparent'
                   }`}
                 >
                   <Icon className={`h-4.5 w-4.5 shrink-0 ${item.active ? 'text-indigo-650' : 'text-slate-400'}`} />
-                  <span className="opacity-0 group-hover:opacity-100 transition-all duration-300 ease-in-out whitespace-nowrap overflow-hidden">
+                  <span className="opacity-0 group-hover:opacity-100 max-w-0 group-hover:max-w-40 transition-all duration-300 ease-in-out whitespace-nowrap overflow-hidden">
                     {item.name}
                   </span>
                 </Link>
@@ -149,11 +154,11 @@ export default function Navigation({ children }: { children: React.ReactNode }) 
 
         {/* User profile & Logout */}
         <div className="p-4 group-hover:p-6 border-t border-slate-100 space-y-4 transition-all duration-300">
-          <div className="flex items-center gap-3.5">
+          <div className="flex items-center gap-0 group-hover:gap-3.5 transition-all duration-300">
             <div className="h-9 w-9 rounded-xl bg-slate-50 border border-slate-200/60 flex items-center justify-center text-slate-500 shrink-0">
               <User className="h-4.5 w-4.5" />
             </div>
-            <div className="min-w-0 flex-1 opacity-0 group-hover:opacity-100 transition-all duration-300 ease-in-out whitespace-nowrap overflow-hidden">
+            <div className="min-w-0 flex-1 opacity-0 group-hover:opacity-100 max-w-0 group-hover:max-w-40 transition-all duration-300 ease-in-out whitespace-nowrap overflow-hidden">
               <p className="text-xs font-bold text-slate-805 truncate">
                 {user ? user.email : 'Sandbox Mode'}
               </p>
@@ -165,10 +170,10 @@ export default function Navigation({ children }: { children: React.ReactNode }) 
           {isConfigured && (
             <button
               onClick={signOut}
-              className="w-full py-2.5 px-3 rounded-xl border border-slate-200 hover:border-rose-100 hover:bg-rose-50 text-slate-550 hover:text-rose-600 text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap overflow-hidden"
+              className="w-full py-2.5 px-3 rounded-xl border border-slate-200 hover:border-rose-100 hover:bg-rose-50 text-slate-550 hover:text-rose-600 text-xs font-bold transition-all flex items-center justify-center gap-0 group-hover:gap-2 cursor-pointer whitespace-nowrap overflow-hidden"
             >
               <LogOut className="h-4 w-4 shrink-0" />
-              <span className="opacity-0 group-hover:opacity-100 transition-all duration-300 ease-in-out">
+              <span className="opacity-0 group-hover:opacity-100 max-w-0 group-hover:max-w-40 transition-all duration-300 ease-in-out">
                 Sign Out
               </span>
             </button>
@@ -182,7 +187,7 @@ export default function Navigation({ children }: { children: React.ReactNode }) 
           <div className="h-7 w-7 bg-indigo-650 rounded-lg flex items-center justify-center text-white">
             <Layers className="h-4 w-4" />
           </div>
-          <span className="font-bold tracking-tight text-slate-900 text-xs">Ziegler Inventory</span>
+          <span className="font-bold tracking-tight text-slate-900 text-xs">Inventory Hub</span>
           {activeSession && (
             <span className="text-[9px] bg-indigo-50 text-indigo-750 border border-indigo-100 font-bold uppercase tracking-wide px-1.5 py-0.5 rounded font-mono ml-2">
               {activeSession}

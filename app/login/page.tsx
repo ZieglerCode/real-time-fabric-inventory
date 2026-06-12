@@ -66,7 +66,7 @@ export default function LoginPage() {
             <KeyRound className="h-6 w-6" />
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-            Fabric Inventory Portal
+            Inventory Hub Portal
           </h1>
           <p className="text-sm text-slate-500 mt-2">
             {isConfigured ? 'Sign in to access your shared workspace' : 'Explore the digitized inventory sandbox'}

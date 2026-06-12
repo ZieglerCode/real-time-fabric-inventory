@@ -53,7 +53,7 @@ export default function LandingPage() {
           <div className="h-9 w-9 bg-indigo-650 rounded-xl flex items-center justify-center text-white shadow-md shadow-indigo-200">
             <Layers className="h-5 w-5" />
           </div>
-          <span className="font-bold tracking-tight text-slate-900 text-lg">Ziegler Inventory</span>
+          <span className="font-bold tracking-tight text-slate-900 text-lg">Inventory Hub</span>
         </div>
 
         <div className="flex items-center gap-4">
