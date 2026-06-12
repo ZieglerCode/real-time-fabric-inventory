@@ -209,6 +209,58 @@ function TaggingPageContent() {
 
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Smart suggestions states
+  const [detectLoading, setDetectLoading] = useState(false);
+  const [suggestions, setSuggestions] = useState<{ name: string; color: string; pattern: string; material: string } | null>(null);
+  const [detectError, setDetectError] = useState('');
+
+  // Fetch suggestions for catalog properties
+  const handleFetchSuggestions = async () => {
+    if (!activeFabric) return;
+    setDetectLoading(true);
+    setDetectError('');
+    setSuggestions(null);
+
+    try {
+      if (isConfigured) {
+        const response = await fetch('/api/analyze-fabric', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ imageUrl: activeFabric.image_url }),
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to detect fabric characteristics.');
+        }
+
+        setSuggestions(data.suggestions);
+      } else {
+        // --- OFFLINE MOCK MODE ---
+        await new Promise((resolve) => setTimeout(resolve, 1200));
+        
+        const mockNames = [
+          { name: 'Classic Charcoal Tweed', color: 'Charcoal Grey', pattern: 'Herringbone', material: 'Woven Tweed Wool' },
+          { name: 'Olive Cotton Canvas', color: 'Olive Green', pattern: 'Solid', material: 'Heavy Canvas Cotton' },
+          { name: 'Navy Polka Crepe', color: 'Navy Blue', pattern: 'Polka Dot', material: 'Crepe Polyester' },
+          { name: 'Golden Damask Silk', color: 'Antique Gold', pattern: 'Damask / Jacquard', material: 'Silk Brocade' },
+          { name: 'Scarlet Tartan Flannel', color: 'Scarlet Red', pattern: 'Tartan Plaid', material: 'Brushed Flannel' },
+        ];
+        
+        const seed = activeFabric.id.charCodeAt(activeFabric.id.length - 1) || 0;
+        const selectedMock = mockNames[seed % mockNames.length];
+        setSuggestions(selectedMock);
+      }
+    } catch (err: any) {
+      console.error('Property detection failed:', err);
+      setDetectError(err.message || 'Smart scanning failed. Verify configuration.');
+    } finally {
+      setDetectLoading(false);
+    }
+  };
+
   // Keep track of active fabric in a ref to reference inside callbacks without re-subscribing websockets
   const activeFabricRef = useRef<Fabric | null>(null);
   useEffect(() => {
@@ -411,6 +463,8 @@ function TaggingPageContent() {
 
   // Autofocus input whenever active fabric changes
   useEffect(() => {
+    setSuggestions(null);
+    setDetectError('');
     if (activeFabric) {
       const timerDoc = setTimeout(() => {
         inputRef.current?.focus();
@@ -879,11 +933,84 @@ function TaggingPageContent() {
 
                   {!isDiscarding ? (
                     <form onSubmit={handleSaveAndGenerateQR} className="space-y-4">
-                      <div className="space-y-2">
-                         <label htmlFor="fabric-name-input" className="text-xs font-bold text-slate-500 uppercase tracking-wider block">
-                           Fabric Name / Pattern Variant
-                         </label>
-                         <input 
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-center">
+                          <label htmlFor="fabric-name-input" className="text-xs font-bold text-slate-500 uppercase tracking-wider block">
+                            Fabric Name / Pattern Variant
+                          </label>
+                          
+                          {/* Smart tag trigger */}
+                          <button
+                            type="button"
+                            onClick={handleFetchSuggestions}
+                            disabled={detectLoading || saving}
+                            className="text-[10px] font-bold text-indigo-650 hover:text-indigo-850 flex items-center gap-1.5 transition-colors cursor-pointer border border-indigo-100 bg-indigo-50/50 hover:bg-indigo-50 px-2 py-1 rounded-lg disabled:opacity-50"
+                          >
+                            {detectLoading ? (
+                              <>
+                                <Loader2 className="h-3 w-3 animate-spin text-indigo-600" />
+                                <span>Scanning image...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Tag className="h-3 w-3 text-indigo-500" />
+                                <span>Auto-detect features</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+
+                        {/* Suggestions result card */}
+                        {suggestions && (
+                          <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl space-y-2.5 animate-in fade-in duration-200">
+                            <div className="flex justify-between items-center text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                              <span>Detected Properties</span>
+                              <button
+                                type="button"
+                                onClick={() => setFabricName(suggestions.name)}
+                                className="text-[10px] text-indigo-650 hover:text-indigo-805 font-bold uppercase tracking-widest cursor-pointer"
+                              >
+                                Apply suggested name
+                              </button>
+                            </div>
+                            
+                            {/* Properties pills grid */}
+                            <div className="grid grid-cols-3 gap-2 text-[10.5px]">
+                              <div className="bg-white p-2 rounded-xl border border-slate-150 text-center">
+                                <span className="block text-[8px] text-slate-400 font-bold uppercase tracking-widest mb-0.5">Color</span>
+                                <span className="font-bold text-slate-700 truncate block" title={suggestions.color}>{suggestions.color}</span>
+                              </div>
+                              <div className="bg-white p-2 rounded-xl border border-slate-150 text-center">
+                                <span className="block text-[8px] text-slate-400 font-bold uppercase tracking-widest mb-0.5">Pattern</span>
+                                <span className="font-bold text-slate-700 truncate block" title={suggestions.pattern}>{suggestions.pattern}</span>
+                              </div>
+                              <div className="bg-white p-2 rounded-xl border border-slate-150 text-center">
+                                <span className="block text-[8px] text-slate-400 font-bold uppercase tracking-widest mb-0.5">Texture</span>
+                                <span className="font-bold text-slate-700 truncate block" title={suggestions.material}>{suggestions.material}</span>
+                              </div>
+                            </div>
+                            
+                            <div className="text-[11px] bg-white border border-slate-150 rounded-xl p-2.5 flex items-center justify-between gap-3">
+                              <span className="text-slate-500 font-medium">Suggested: <strong className="font-bold text-slate-800">{suggestions.name}</strong></span>
+                              <button
+                                type="button"
+                                onClick={() => setFabricName(suggestions.name)}
+                                className="shrink-0 text-[10px] bg-indigo-50 hover:bg-indigo-100 border border-indigo-100 px-2 py-1 rounded-lg text-indigo-700 font-bold transition-all cursor-pointer"
+                              >
+                                Use
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        {detectError && (
+                          <div className="p-3 bg-rose-50 border border-rose-100 text-rose-800 text-[10.5px] rounded-xl flex items-center gap-2 animate-in fade-in duration-200">
+                            <AlertCircle className="h-3.5 w-3.5 text-rose-500 shrink-0" />
+                            <span className="font-semibold">{detectError}</span>
+                          </div>
+                        )}
+
+                        <input 
                           type="text"
                           id="fabric-name-input"
                           ref={inputRef}
