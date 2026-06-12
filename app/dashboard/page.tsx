@@ -867,7 +867,7 @@ export default function DashboardPage() {
                   </h3>
                   <input
                     type="text"
-                    placeholder="e.g. Ziegler Europe"
+                    placeholder="e.g. Europe Warehouse"
                     required
                     value={teamName}
                     onChange={(e) => setTeamName(e.target.value)}

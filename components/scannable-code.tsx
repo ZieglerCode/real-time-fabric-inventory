@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
+import type { RenderOptions } from 'bwip-js/browser';
 
 export type CodeType = 'qrcode' | 'datamatrix' | 'code128' | 'code39' | 'ean13' | 'upca' | 'pdf417';
 
@@ -54,15 +55,20 @@ export default function ScannableCode({
           throw new Error('Empty or invalid value for this barcode type');
         }
 
-        // toCanvas(canvas, options) — synchronous browser render
-        bwipjs.toCanvas(canvasRef.current, {
-          bcid: bcid,
+        const renderOptions: RenderOptions = {
+          bcid,
           text: cleanedValue,
-          scale: scale,
-          height: type === 'qrcode' || type === 'datamatrix' ? undefined : height,
+          scale,
           includetext: includeText,
           textxalign: 'center',
-        });
+        };
+
+        if (type !== 'qrcode' && type !== 'datamatrix') {
+          renderOptions.height = height;
+        }
+
+        // toCanvas(canvas, options) — synchronous browser render
+        bwipjs.toCanvas(canvasRef.current, renderOptions);
       } catch (e: any) {
         // bwip-js throws plain strings, not Error objects
         const msg = typeof e === 'string' ? e : (e?.message || 'Render error');

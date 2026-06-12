@@ -85,7 +85,7 @@ export default function Navigation({ children }: { children: React.ReactNode }) 
             </div>
             <div className="opacity-0 group-hover:opacity-100 max-w-0 group-hover:max-w-40 transition-all duration-300 ease-in-out whitespace-nowrap overflow-hidden pointer-events-none">
               <span className="font-bold tracking-tight text-slate-900 text-sm block leading-none">Inventory Hub</span>
-              <span className="text-[9.5px] text-slate-400 font-bold uppercase tracking-wider">Ziegler Textile</span>
+              <span className="text-[9.5px] text-slate-400 font-bold uppercase tracking-wider">Fabric Management</span>
             </div>
           </div>
 

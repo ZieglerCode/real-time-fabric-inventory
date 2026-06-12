@@ -35,7 +35,7 @@ export function usePrinter() {
     if (isSandbox) {
       // Offline sandbox simulation
       await new Promise((resolve) => setTimeout(resolve, 800));
-      setConnectedDeviceName('Ziegler PrintCore USB-203');
+      setConnectedDeviceName('PrintCore USB-203 (Demo)');
       setStatus('connected');
       return;
     }
@@ -70,7 +70,7 @@ export function usePrinter() {
     if (isSandbox) {
       // Offline sandbox simulation
       await new Promise((resolve) => setTimeout(resolve, 800));
-      setConnectedDeviceName('Ziegler PrintCore BT-203');
+      setConnectedDeviceName('PrintCore BT-203 (Demo)');
       setStatus('connected');
       return;
     }

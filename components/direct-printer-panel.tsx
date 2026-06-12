@@ -1,12 +1,12 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { CheckCircle2, Printer, Usb, Bluetooth, AlertCircle, Loader2 } from 'lucide-react';
 import { usePrinter, PrinterLanguage } from '@/hooks/use-printer';
 import ScannableCode, { CodeType } from '@/components/scannable-code';
 
 interface DirectPrinterPanelProps {
-  savedQrData: { id: string; name: string } | null;
+  savedQrData: { id: string; name: string; teamName?: string } | null;
   sessionCode: string;
   connectionStatus: string;
   print2DFormat: CodeType;
@@ -14,6 +14,13 @@ interface DirectPrinterPanelProps {
   print1DFormat: CodeType;
   setPrint1DFormat: (type: CodeType) => void;
 }
+
+// SVG grid icon used as logo on the sticker footer
+const GridIcon = () => (
+  <svg className="h-3.5 w-3.5 text-slate-300 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zm0 9.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zm9.75-9.75A2.25 2.25 0 0115.75 3.75H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zm0 9.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
+  </svg>
+);
 
 export default function DirectPrinterPanel({
   savedQrData,
@@ -40,6 +47,10 @@ export default function DirectPrinterPanel({
     hasBluetoothSupport
   } = usePrinter();
 
+  // Code visibility toggles — max 2 per sticker
+  const [show2D, setShow2D] = useState(true);
+  const [show1D, setShow1D] = useState(true);
+
   if (!savedQrData) return null;
 
   const handlePrint = async () => {
@@ -55,6 +66,16 @@ export default function DirectPrinterPanel({
     }
   };
 
+  // Determine code layout scales based on which codes are shown
+  const both = show2D && show1D;
+  const qrScale = both ? 1.2 : 2;
+  const barScale = both ? 0.8 : 1;
+  const barHeight = both ? 7 : 10;
+
+  const footerText = savedQrData.teamName
+    ? `${savedQrData.teamName} Textile`
+    : 'Textile Catalog';
+
   return (
     <div className="bg-white rounded-3xl border border-emerald-250 p-6 shadow-md animate-in fade-in zoom-in duration-300 print-tag-box bg-emerald-50/10 space-y-4">
       <div className="flex items-center gap-2 text-emerald-800 font-bold">
@@ -62,95 +83,87 @@ export default function DirectPrinterPanel({
         <span className="text-xs">Sticker Label Generated!</span>
       </div>
 
-      {/* PRINT ELEMENT STYLED FOR 50mm x 30mm (2x1.2 inch) THERMAL LABEL PRINTERS */}
-      <div className="p-4 flex items-center justify-center bg-slate-50/50 rounded-2xl border border-slate-150/80 print:bg-white print:p-0">
-        <div 
-          id="thermal-sticker-label" 
-          className="bg-white border border-slate-300 p-4 rounded-2xl flex flex-col justify-between items-center text-center shadow-xs w-72 h-44 print:border-none print:shadow-none print:rounded-none print:p-0 print:w-[2.2in] print:h-[1.2in] print:m-0"
+      {/* ── STICKER PREVIEW ── 50mm × 30mm thermal label */}
+      <div className="flex items-center justify-center bg-slate-50/50 rounded-2xl border border-slate-150/80 p-3 print:bg-white print:p-0">
+        <div
+          id="thermal-sticker-label"
+          className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden flex flex-col"
+          style={{ width: 288, height: 172 }} /* 2.2in × 1.2in @ 96dpi preview */
         >
-          <div className="w-full min-w-0">
-            <p className={`text-[12px] font-extrabold truncate print:text-[10px] print:leading-tight ${
+          {/* Header: name + ref */}
+          <div className="px-3 pt-2.5 pb-1 text-center w-full min-w-0 shrink-0">
+            <p className={`text-[11px] font-extrabold leading-tight truncate ${
               savedQrData.name ? 'text-slate-950' : 'text-slate-400 italic'
             }`}>
               {savedQrData.name || 'Unnamed Fabric'}
             </p>
-            <p className="text-[8px] font-mono text-slate-400 font-bold uppercase tracking-wider mt-0.5 print:text-[7px]">
-              ID: {savedQrData.id}
+            <p className="text-[7px] font-mono text-slate-400 font-bold uppercase tracking-wider mt-0.5 truncate">
+              {savedQrData.id}
             </p>
           </div>
 
-          {/* Codes side-by-side layout */}
-          <div className="flex items-center justify-around w-full gap-4 mt-2">
-            <div className="p-0.5 bg-white border border-slate-150 rounded shrink-0 print:border-none">
-              <ScannableCode 
-                value={savedQrData.id || ''} 
-                type={print2DFormat} 
-                scale={1.5}
-              />
-            </div>
-            <div className="scale-90 origin-center shrink-0">
-              <ScannableCode 
-                value={savedQrData.id || ''} 
-                type={print1DFormat} 
-                scale={1.2} 
-                height={9}
-              />
-            </div>
+          {/* Codes area – grows to fill, clips overflow */}
+          <div className="flex-1 flex items-center justify-center gap-2 px-2 overflow-hidden min-h-0">
+            {!show2D && !show1D ? (
+              <p className="text-[9px] text-slate-400 font-medium">No code selected</p>
+            ) : both ? (
+              /* Both codes: QR square left | slim barcode right */
+              <>
+                <div className="shrink-0">
+                  <ScannableCode value={savedQrData.id} type={print2DFormat} scale={qrScale} />
+                </div>
+                <div className="shrink-0 overflow-hidden max-w-[136px]">
+                  <ScannableCode value={savedQrData.id} type={print1DFormat} scale={barScale} height={barHeight} />
+                </div>
+              </>
+            ) : show2D ? (
+              /* Only 2D — centered, bigger */
+              <div className="shrink-0">
+                <ScannableCode value={savedQrData.id} type={print2DFormat} scale={qrScale} />
+              </div>
+            ) : (
+              /* Only 1D barcode — centered, wider */
+              <div className="shrink-0 max-w-[256px] overflow-hidden">
+                <ScannableCode value={savedQrData.id} type={print1DFormat} scale={barScale} height={barHeight} />
+              </div>
+            )}
           </div>
 
-          <div className="w-full border-t border-slate-100 pt-1.5 mt-2 flex justify-between items-center text-[7px] font-bold text-slate-400 uppercase tracking-widest print:text-[6px] print:mt-1">
-            <span>Ziegler textile catalog</span>
-            <span className="font-mono">{sessionCode.toUpperCase()}</span>
+          {/* Footer */}
+          <div className="px-3 pb-2 pt-1 border-t border-slate-100 flex justify-between items-center shrink-0">
+            <span className="text-[6.5px] font-bold text-slate-400 uppercase tracking-widest truncate mr-2">
+              {footerText}
+            </span>
+            <GridIcon />
           </div>
         </div>
       </div>
 
-      {/* Printer Configuration Panel */}
+      {/* ── PRINTER CONFIGURATION PANEL ── */}
       <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-4 print:hidden">
-        {/* Tab Selector for Printer Connection Mode */}
+        {/* Printer Mode Tabs */}
         <div>
           <label className="block text-[9.5px] font-bold text-slate-550 mb-1.5 uppercase tracking-wider">Printer Mode</label>
           <div className="grid grid-cols-3 gap-2 bg-slate-200/50 p-1 rounded-xl">
-            <button
-              type="button"
-              onClick={() => setPrinterMode('browser')}
-              className={`py-1.5 text-[10px] font-bold rounded-lg transition-all flex items-center justify-center gap-1 cursor-pointer ${
-                printerMode === 'browser'
-                  ? 'bg-white text-indigo-650 shadow-xs border border-slate-200/50'
-                  : 'text-slate-500 hover:text-slate-700'
-              }`}
-            >
-              <Printer className="h-3 w-3" />
-              <span>System Print</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setPrinterMode('usb')}
-              className={`py-1.5 text-[10px] font-bold rounded-lg transition-all flex items-center justify-center gap-1 cursor-pointer ${
-                printerMode === 'usb'
-                  ? 'bg-white text-indigo-650 shadow-xs border border-slate-200/50'
-                  : 'text-slate-500 hover:text-slate-700'
-              }`}
-            >
-              <Usb className="h-3 w-3" />
-              <span>Direct USB</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setPrinterMode('bluetooth')}
-              className={`py-1.5 text-[10px] font-bold rounded-lg transition-all flex items-center justify-center gap-1 cursor-pointer ${
-                printerMode === 'bluetooth'
-                  ? 'bg-white text-indigo-650 shadow-xs border border-slate-200/50'
-                  : 'text-slate-500 hover:text-slate-700'
-              }`}
-            >
-              <Bluetooth className="h-3 w-3" />
-              <span>Bluetooth</span>
-            </button>
+            {(['browser', 'usb', 'bluetooth'] as const).map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setPrinterMode(m)}
+                className={`py-1.5 text-[10px] font-bold rounded-lg transition-all flex items-center justify-center gap-1 cursor-pointer ${
+                  printerMode === m
+                    ? 'bg-white text-indigo-650 shadow-xs border border-slate-200/50'
+                    : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                {m === 'browser' ? <Printer className="h-3 w-3" /> : m === 'usb' ? <Usb className="h-3 w-3" /> : <Bluetooth className="h-3 w-3" />}
+                <span>{m === 'browser' ? 'System' : m === 'usb' ? 'USB' : 'Bluetooth'}</span>
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* Direct Printing Connection Drawer */}
+        {/* Direct Connection Drawer */}
         {printerMode !== 'browser' && (
           <div className="p-3.5 bg-white border border-slate-200 rounded-xl space-y-3 shadow-2xs">
             <div className="flex items-center justify-between text-xs">
@@ -175,11 +188,8 @@ export default function DirectPrinterPanel({
                   <p className="text-[10px] text-emerald-800 font-bold uppercase tracking-wider">Device</p>
                   <p className="text-xs font-semibold text-emerald-950 truncate">{connectedDeviceName}</p>
                 </div>
-                <button
-                  type="button"
-                  onClick={disconnectPrinter}
-                  className="text-[10px] font-bold text-rose-650 hover:text-rose-800 px-2 py-1 bg-white border border-rose-100 hover:border-rose-200 rounded-lg shadow-2xs transition-all cursor-pointer"
-                >
+                <button type="button" onClick={disconnectPrinter}
+                  className="text-[10px] font-bold text-rose-650 hover:text-rose-800 px-2 py-1 bg-white border border-rose-100 hover:border-rose-200 rounded-lg shadow-2xs transition-all cursor-pointer">
                   Disconnect
                 </button>
               </div>
@@ -190,38 +200,20 @@ export default function DirectPrinterPanel({
                 {((printerMode === 'usb' && !hasUsbSupport) || (printerMode === 'bluetooth' && !hasBluetoothSupport)) ? (
                   <div className="p-3 bg-amber-50 border border-amber-100 rounded-lg flex items-start gap-2 text-amber-800 text-[10.5px] font-medium leading-relaxed">
                     <AlertCircle className="h-4 w-4 shrink-0 text-amber-500 mt-0.5" />
-                    <div>
-                      <p className="font-bold">Not Supported</p>
-                      <p>Direct {printerMode === 'usb' ? 'USB' : 'Bluetooth'} is unsupported in this browser. Please use Chrome or Edge on Desktop, or switch to System Print.</p>
-                    </div>
+                    <p>Direct {printerMode === 'usb' ? 'USB' : 'Bluetooth'} requires Chrome / Edge on Desktop.</p>
                   </div>
                 ) : (
-                  <button
-                    type="button"
-                    disabled={printerStatus === 'connecting'}
-                    onClick={() => {
-                      if (printerMode === 'usb') {
-                        connectUSB(connectionStatus === 'local');
-                      } else {
-                        connectBluetooth(connectionStatus === 'local');
-                      }
-                    }}
+                  <button type="button" disabled={printerStatus === 'connecting'}
+                    onClick={() => printerMode === 'usb' ? connectUSB(connectionStatus === 'local') : connectBluetooth(connectionStatus === 'local')}
                     className={`w-full py-2.5 px-4 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-1.5 cursor-pointer text-white ${
                       printerStatus === 'connecting'
                         ? 'bg-slate-350 cursor-not-allowed shadow-none'
                         : 'bg-indigo-650 hover:bg-indigo-750 shadow-indigo-100 border-b border-indigo-850'
-                    }`}
-                  >
+                    }`}>
                     {printerStatus === 'connecting' ? (
-                      <>
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        <span>Searching Device...</span>
-                      </>
+                      <><Loader2 className="h-3.5 w-3.5 animate-spin" /><span>Searching...</span></>
                     ) : (
-                      <>
-                        {printerMode === 'usb' ? <Usb className="h-3.5 w-3.5" /> : <Bluetooth className="h-3.5 w-3.5" />}
-                        <span>Connect {printerMode === 'usb' ? 'USB Printer' : 'Bluetooth Printer'}</span>
-                      </>
+                      <>{printerMode === 'usb' ? <Usb className="h-3.5 w-3.5" /> : <Bluetooth className="h-3.5 w-3.5" />}<span>Connect {printerMode === 'usb' ? 'USB' : 'Bluetooth'} Printer</span></>
                     )}
                   </button>
                 )}
@@ -229,7 +221,7 @@ export default function DirectPrinterPanel({
             )}
 
             {printerErrorMsg && (
-              <div className="p-2.5 bg-rose-50 border border-rose-100 text-rose-800 rounded-lg text-[10.5px] font-medium flex items-center gap-1.5 animate-pulse">
+              <div className="p-2.5 bg-rose-50 border border-rose-100 text-rose-800 rounded-lg text-[10.5px] font-medium flex items-center gap-1.5">
                 <AlertCircle className="h-3.5 w-3.5 shrink-0 text-rose-500" />
                 <span className="truncate">{printerErrorMsg}</span>
               </div>
@@ -237,11 +229,8 @@ export default function DirectPrinterPanel({
 
             <div className="pt-1.5">
               <label className="block text-[9.5px] font-bold text-slate-550 mb-1 uppercase tracking-wider">Printer Language</label>
-              <select
-                value={printerLanguage}
-                onChange={(e) => setPrinterLanguage(e.target.value as PrinterLanguage)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold px-2.5 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer text-slate-700"
-              >
+              <select value={printerLanguage} onChange={(e) => setPrinterLanguage(e.target.value as PrinterLanguage)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold px-2.5 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer text-slate-700">
                 <option value="TSPL">TSPL (Munbyn, Xprinter, Rollo, TSC)</option>
                 <option value="ZPL">ZPL (Zebra Printers)</option>
               </select>
@@ -249,51 +238,77 @@ export default function DirectPrinterPanel({
           </div>
         )}
 
+        {/* ── CODE SELECTION ── */}
         <div className="space-y-3">
-          <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Label Code Formats</h4>
+          <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Codes on Sticker</h4>
+
+          {/* Toggle buttons for show/hide each code */}
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setShow2D(v => !v)}
+              className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-[10px] font-bold border transition-all cursor-pointer ${
+                show2D
+                  ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
+                  : 'bg-white border-slate-200 text-slate-400 line-through'
+              }`}
+            >
+              <span className="text-base leading-none">{show2D ? '☑' : '☐'}</span>
+              2D Code
+            </button>
+            <button
+              type="button"
+              onClick={() => setShow1D(v => !v)}
+              className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-[10px] font-bold border transition-all cursor-pointer ${
+                show1D
+                  ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
+                  : 'bg-white border-slate-200 text-slate-400 line-through'
+              }`}
+            >
+              <span className="text-base leading-none">{show1D ? '☑' : '☐'}</span>
+              1D Barcode
+            </button>
+          </div>
+
+          {/* Format selectors — only shown when the code is active */}
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-[9.5px] font-bold text-slate-550 mb-1">2D Format</label>
-              <select
-                value={print2DFormat}
-                onChange={(e) => setPrint2DFormat(e.target.value as CodeType)}
-                className="w-full bg-white border border-slate-200 rounded-xl text-xs font-semibold px-2.5 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer text-slate-700"
-              >
-                <option value="qrcode">QR Code</option>
-                <option value="datamatrix">Data Matrix</option>
-                <option value="pdf417">PDF417</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-[9.5px] font-bold text-slate-550 mb-1">1D Format</label>
-              <select
-                value={print1DFormat}
-                onChange={(e) => setPrint1DFormat(e.target.value as CodeType)}
-                className="w-full bg-white border border-slate-200 rounded-xl text-xs font-semibold px-2.5 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer text-slate-700"
-              >
-                <option value="code128">Code 128</option>
-                <option value="code39">Code 39</option>
-                <option value="ean13">EAN-13 (Numeric)</option>
-                <option value="upca">UPC-A (Numeric)</option>
-              </select>
-            </div>
+            {show2D && (
+              <div>
+                <label className="block text-[9.5px] font-bold text-slate-550 mb-1">2D Format</label>
+                <select value={print2DFormat} onChange={(e) => setPrint2DFormat(e.target.value as CodeType)}
+                  className="w-full bg-white border border-slate-200 rounded-xl text-xs font-semibold px-2.5 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer text-slate-700">
+                  <option value="qrcode">QR Code</option>
+                  <option value="datamatrix">Data Matrix</option>
+                  <option value="pdf417">PDF417</option>
+                </select>
+              </div>
+            )}
+            {show1D && (
+              <div className={show2D ? '' : 'col-span-2'}>
+                <label className="block text-[9.5px] font-bold text-slate-550 mb-1">1D Format</label>
+                <select value={print1DFormat} onChange={(e) => setPrint1DFormat(e.target.value as CodeType)}
+                  className="w-full bg-white border border-slate-200 rounded-xl text-xs font-semibold px-2.5 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer text-slate-700">
+                  <option value="code128">Code 128</option>
+                  <option value="code39">Code 39</option>
+                  <option value="ean13">EAN-13 (Numeric)</option>
+                  <option value="upca">UPC-A (Numeric)</option>
+                </select>
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Action buttons footer */}
+      {/* Action footer */}
       <div className="flex justify-between items-center pt-3 border-t border-slate-200/60 print:hidden">
-        <button 
+        <button
           type="button"
-          onClick={() => {
-            navigator.clipboard.writeText(savedQrData.id);
-            alert('Label ID code copied to clipboard!');
-          }}
+          onClick={() => { navigator.clipboard.writeText(savedQrData.id); alert('Reference ID copied!'); }}
           className="text-slate-400 hover:text-slate-650 transition-all font-semibold cursor-pointer text-xs"
         >
           Copy Reference ID
         </button>
-        <button 
+        <button
           type="button"
           disabled={printerMode !== 'browser' && printerStatus !== 'connected'}
           onClick={handlePrint}

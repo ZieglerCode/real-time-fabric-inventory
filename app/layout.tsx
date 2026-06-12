@@ -17,8 +17,8 @@ export const metadata: Metadata = {
   },
   description: 'Professional fabric inventory digitization and physical sample tracking system. Connect mobile upload stations and labeling desks to archive inventory using barcode stickers.',
   keywords: ['fabric inventory', 'fabric digitization', 'barcode labels', 'textile management', 'inventory tracking'],
-  authors: [{ name: 'Ziegler Code' }],
-  creator: 'Ziegler Code',
+  authors: [{ name: 'Inventory Hub' }],
+  creator: 'Inventory Hub',
   robots: {
     index: false, // Set to false to avoid search engines indexing internal workspaces, or true if public
     follow: true,

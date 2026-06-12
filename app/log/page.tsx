@@ -346,7 +346,7 @@ export default function DigitizationLogPage() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);
-    link.setAttribute('download', `ziegler_inventory_export_${Date.now()}.csv`);
+    link.setAttribute('download', `inventory_hub_export_${Date.now()}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

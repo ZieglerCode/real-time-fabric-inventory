@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Printer, X, Usb, Bluetooth, AlertCircle, Loader2 } from 'lucide-react';
 import ScannableCode, { CodeType } from './scannable-code';
 import { PrinterLanguage } from '@/hooks/use-printer';
@@ -13,6 +13,7 @@ interface Fabric {
   status: 'pending' | 'completed' | 'discarded';
   created_at: string;
   session_code?: string;
+  team_name?: string;
 }
 
 interface SinglePrintModalProps {
@@ -60,6 +61,18 @@ export default function SinglePrintModal({
   hasBluetoothSupport,
   printerErrorMsg,
 }: SinglePrintModalProps) {
+  const [show2D, setShow2D] = useState(true);
+  const [show1D, setShow1D] = useState(true);
+
+  const both = show2D && show1D;
+  const qrScale = both ? 1.2 : 2;
+  const barScale = both ? 0.8 : 1;
+  const barHeight = both ? 7 : 10;
+  const codeValue = activePrintFabric.qr_code_id || '';
+  const footerText = activePrintFabric.team_name
+    ? `${activePrintFabric.team_name} Textile`
+    : 'Textile Catalog';
+
   return (
     <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-40 print:relative print:bg-white print:p-0 print:inset-auto animate-in fade-in duration-200">
       <div className="bg-white rounded-3xl border border-slate-200 shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200 print:border-none print:shadow-none print:rounded-none">
@@ -79,46 +92,56 @@ export default function SinglePrintModal({
         </div>
 
         {/* Sticker Preview Stage */}
-        <div className="p-8 flex items-center justify-center bg-slate-50/50 print:bg-white print:p-0">
-          
-          {/* PRINT ELEMENT STYLED FOR 50mm x 30mm (2x1.2 inch) THERMAL LABEL PRINTERS */}
+        <div className="p-6 flex items-center justify-center bg-slate-50/50 print:bg-white print:p-0">
           <div
             id="thermal-sticker-label"
-            className="bg-white border border-slate-300 p-4 rounded-2xl flex flex-col justify-between items-center text-center shadow-xs w-72 h-44 print:border-none print:shadow-none print:rounded-none print:p-0 print:w-[2.2in] print:h-[1.2in] print:m-0"
+            className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden flex flex-col print:border-none print:shadow-none print:rounded-none print:m-0"
+            style={{ width: 288, height: 172 }}
           >
-            <div className="w-full min-w-0">
-              <p className={`text-[12px] font-extrabold truncate print:text-[10px] print:leading-tight ${
+            {/* Header: name + ref */}
+            <div className="px-3 pt-2.5 pb-1 text-center w-full min-w-0 shrink-0">
+              <p className={`text-[11px] font-extrabold leading-tight truncate ${
                 activePrintFabric.name ? 'text-slate-950' : 'text-slate-400 italic'
               }`}>
                 {activePrintFabric.name || 'Unnamed Fabric'}
               </p>
-              <p className="text-[8px] font-mono text-slate-400 font-bold uppercase tracking-wider mt-0.5 print:text-[7px]">
-                ID: {activePrintFabric.qr_code_id}
+              <p className="text-[7px] font-mono text-slate-400 font-bold uppercase tracking-wider mt-0.5 truncate">
+                {codeValue}
               </p>
             </div>
 
-            {/* Codes side-by-side layout */}
-            <div className="flex items-center justify-around w-full gap-4 mt-2">
-              <div className="p-0.5 bg-white border border-slate-150 rounded shrink-0 print:border-none">
-                <ScannableCode
-                  value={activePrintFabric.qr_code_id || ''}
-                  type={print2DFormat}
-                  scale={1.5}
-                />
-              </div>
-              <div className="scale-90 origin-center shrink-0">
-                <ScannableCode
-                  value={activePrintFabric.qr_code_id || ''}
-                  type={print1DFormat}
-                  scale={1.2}
-                  height={9}
-                />
-              </div>
+            {/* Codes area — fills remaining height, clips overflow */}
+            <div className="flex-1 flex items-center justify-center gap-2 px-2 overflow-hidden min-h-0">
+              {!show2D && !show1D ? (
+                <p className="text-[9px] text-slate-400 font-medium">No code selected</p>
+              ) : both ? (
+                <>
+                  <div className="shrink-0">
+                    <ScannableCode value={codeValue} type={print2DFormat} scale={qrScale} />
+                  </div>
+                  <div className="shrink-0 overflow-hidden max-w-[136px]">
+                    <ScannableCode value={codeValue} type={print1DFormat} scale={barScale} height={barHeight} />
+                  </div>
+                </>
+              ) : show2D ? (
+                <div className="shrink-0">
+                  <ScannableCode value={codeValue} type={print2DFormat} scale={qrScale} />
+                </div>
+              ) : (
+                <div className="shrink-0 max-w-[256px] overflow-hidden">
+                  <ScannableCode value={codeValue} type={print1DFormat} scale={barScale} height={barHeight} />
+                </div>
+              )}
             </div>
 
-            <div className="w-full border-t border-slate-100 pt-1.5 mt-2 flex justify-between items-center text-[7px] font-bold text-slate-400 uppercase tracking-widest print:text-[6px] print:mt-1">
-              <span>Ziegler textile catalog</span>
-              <span className="font-mono">{activePrintFabric.session_code}</span>
+            {/* Footer */}
+            <div className="px-3 pb-2 pt-1 border-t border-slate-100 flex justify-between items-center shrink-0">
+              <span className="text-[6.5px] font-bold text-slate-400 uppercase tracking-widest truncate mr-2">
+                {footerText}
+              </span>
+              <svg className="h-3.5 w-3.5 text-slate-300 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zm0 9.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zm9.75-9.75A2.25 2.25 0 0115.75 3.75H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zm0 9.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
+              </svg>
             </div>
           </div>
         </div>

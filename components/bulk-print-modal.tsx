@@ -13,6 +13,7 @@ interface Fabric {
   status: 'pending' | 'completed' | 'discarded';
   created_at: string;
   session_code?: string;
+  team_name?: string;
 }
 
 interface BulkPrintModalProps {
@@ -474,9 +475,15 @@ export default function BulkPrintModal({
                       </div>
 
                       {bulkShowFooter && (
-                        <div className="w-full border-t border-slate-100 pt-1 flex justify-between items-center text-[6.5px] font-bold text-slate-400 uppercase tracking-widest leading-none">
-                          <span>Ziegler textile</span>
-                          <span className="font-mono">{fabric.session_code}</span>
+                        <div className="w-full border-t border-slate-100 pt-1 flex justify-between items-center leading-none">
+                          <span className="text-[6.5px] font-bold text-slate-400 uppercase tracking-widest">
+                            {fabric.team_name
+                              ? `${fabric.team_name} Textile`
+                              : 'Textile Catalog'}
+                          </span>
+                          <svg className="h-3 w-3 text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zm0 9.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zm9.75-9.75A2.25 2.25 0 0115.75 3.75H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zm0 9.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
+                          </svg>
                         </div>
                       )}
                     </div>

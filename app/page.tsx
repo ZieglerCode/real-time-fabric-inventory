@@ -169,7 +169,7 @@ export default function LandingPage() {
                   <span className="h-2 w-2 rounded-full bg-rose-500/80" />
                   <span className="h-2 w-2 rounded-full bg-amber-500/80" />
                   <span className="h-2 w-2 rounded-full bg-emerald-500/80" />
-                  <span className="text-[9px] text-slate-600 font-mono ml-2">portal.ziegler.com/tagging</span>
+                  <span className="text-[9px] text-slate-600 font-mono ml-2">inventory-hub/tagging</span>
                 </div>
                 <div className="flex-1 grid grid-cols-12 gap-3 pt-3">
                   <div className="col-span-4 border-r border-slate-900 pr-2 space-y-1.5">
@@ -377,7 +377,7 @@ export default function LandingPage() {
 
       {/* Footer */}
       <footer className="bg-white border-t border-slate-200/80 py-10 relative z-10 text-center text-xs text-slate-400">
-        <p>© {new Date().getFullYear()} Ziegler Textile Operations. All rights reserved.</p>
+        <p>© {new Date().getFullYear()} Inventory Hub. All rights reserved.</p>
         <p className="mt-1">Designed for internal warehouse and logistics cataloging.</p>
       </footer>
     </div>
