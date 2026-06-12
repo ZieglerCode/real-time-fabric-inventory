@@ -1,11 +1,32 @@
--- 1. UPGRADE FABRICS TABLE
+-- 1. CREATE SESSIONS LOBBY TABLE
+create table if not exists sessions (
+  id uuid default gen_random_uuid() primary key,
+  code text not null unique,
+  created_by uuid references auth.users(id) default auth.uid(),
+  status text default 'active', -- 'active' or 'completed'
+  created_at timestamp with time zone default now()
+);
+
+-- 2. UPGRADE FABRICS TABLE
 alter table fabrics 
   add column if not exists created_by uuid references auth.users(id) default auth.uid(),
   add column if not exists tagged_by uuid references auth.users(id),
   add column if not exists created_by_email text,
-  add column if not exists tagged_by_email text;
+  add column if not exists tagged_by_email text,
+  add column if not exists session_id uuid references sessions(id) on delete cascade;
 
--- 2. RESET RLS POLICIES FOR FABRICS
+-- 3. RESET RLS POLICIES FOR SESSIONS
+alter table sessions enable row level security;
+
+drop policy if exists "Allow authenticated users to manage sessions" on sessions;
+
+create policy "Allow authenticated users to manage sessions"
+  on sessions for all
+  to authenticated
+  using (true)
+  with check (true);
+
+-- 4. RESET RLS POLICIES FOR FABRICS
 alter table fabrics enable row level security;
 
 drop policy if exists "Allow all public operations for fabrics" on fabrics;
@@ -29,8 +50,7 @@ create policy "Allow authenticated users to update fabrics"
   using (true)
   with check (true);
 
--- 3. RESET STORAGE POLICIES FOR FABRIC-IMAGES BUCKET
--- Ensure the storage bucket exists
+-- 5. RESET STORAGE POLICIES FOR FABRIC-IMAGES BUCKET
 insert into storage.buckets (id, name, public)
 values ('fabric-images', 'fabric-images', true)
 on conflict (id) do nothing;

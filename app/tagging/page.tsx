@@ -1,11 +1,13 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { 
   Laptop, CheckCircle2, AlertCircle, Copy, Loader2, Compass, 
-  Tag, Download, Printer, Layers, Clock, ArrowRight, ClipboardCheck,
-  Search, ExternalLink, RefreshCw, Undo2, Ban, User, LogOut
+  Tag, Download, Printer, Layers, Clock, ArrowRight, ArrowLeft, ClipboardCheck,
+  Search, ExternalLink, RefreshCw, Undo2, Ban, User, LogOut, ShieldAlert
 } from 'lucide-react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/use-auth';
 import { QRCodeSVG } from 'qrcode.react';
@@ -22,10 +24,19 @@ interface Fabric {
   created_at: string;
   created_by_email?: string | null;
   tagged_by_email?: string | null;
+  session_id?: string | null;
 }
 
-export default function TaggingPage() {
+function TaggingPageContent() {
   const { user, loading: authLoading, signOut, isConfigured } = useAuth();
+  const searchParams = useSearchParams();
+  const sessionCode = searchParams.get('session') || '';
+  const router = useRouter();
+
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [sessionResolving, setSessionResolving] = useState(true);
+  const [errorText, setErrorText] = useState('');
+
   const [fabrics, setFabrics] = useState<Fabric[]>([]);
   const [completedFabrics, setCompletedFabrics] = useState<Fabric[]>([]);
   const [activeFabric, setActiveFabric] = useState<Fabric | null>(null);
@@ -36,7 +47,7 @@ export default function TaggingPage() {
   // Search state for archive
   const [searchQuery, setSearchQuery] = useState<string>('');
   
-  const [loading, setLoading] = useState<boolean>(() => isConfigured);
+  const [loading, setLoading] = useState<boolean>(true);
   const [saving, setSaving] = useState<boolean>(false);
   const [savedQrData, setSavedQrData] = useState<{ id: string; name: string } | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'error' | 'local'>(() => 
@@ -51,11 +62,61 @@ export default function TaggingPage() {
     activeFabricRef.current = activeFabric;
   }, [activeFabric]);
 
+  // Resolve session code to UUID
+  useEffect(() => {
+    const resolveSession = async () => {
+      if (!sessionCode) {
+        setSessionResolving(false);
+        return;
+      }
+      setSessionResolving(true);
+      setErrorText('');
+
+      try {
+        if (isConfigured) {
+          const { data, error } = await supabase
+            .from('sessions')
+            .select('id')
+            .eq('code', sessionCode.toUpperCase())
+            .eq('status', 'active')
+            .maybeSingle();
+
+          if (error) throw error;
+          if (data) {
+            setSessionId(data.id);
+          } else {
+            setErrorText(`Active session "${sessionCode}" not found.`);
+          }
+        } else {
+          // Sandbox mock resolution
+          const mockSessions = JSON.parse(localStorage.getItem('fabric_local_sessions') || '[]');
+          const matched = mockSessions.find((s: any) => s.code === sessionCode.toUpperCase() && s.status === 'active');
+          if (matched) {
+            setSessionId(matched.id);
+          } else {
+            setErrorText(`Active session "${sessionCode}" not found in sandbox.`);
+          }
+        }
+      } catch (err: any) {
+        console.error('Error resolving session:', err);
+        setErrorText('Failed to resolve active session.');
+      } finally {
+        setSessionResolving(false);
+      }
+    };
+
+    if (!authLoading) {
+      resolveSession();
+    }
+  }, [sessionCode, authLoading, isConfigured]);
+
   // Sync / Load data from localStorage (For offline-sync demo mode)
   const loadLocalData = useCallback(() => {
-    if (typeof window === 'undefined') return;
-    const queue = JSON.parse(localStorage.getItem('fabric_local_queue') || '[]');
-    const processed = JSON.parse(localStorage.getItem('fabric_local_completed') || '[]');
+    if (!sessionId) return;
+    const queue = JSON.parse(localStorage.getItem('fabric_local_queue') || '[]')
+      .filter((f: Fabric) => f.session_id === sessionId);
+    const processed = JSON.parse(localStorage.getItem('fabric_local_completed') || '[]')
+      .filter((f: Fabric) => f.session_id === sessionId);
     
     setFabrics(queue);
     setCompletedFabrics(processed);
@@ -65,27 +126,29 @@ export default function TaggingPage() {
     } else {
       setActiveFabric(null);
     }
-  }, []);
+  }, [sessionId]);
 
   // Fetch pending and completed fabrics from Live Supabase
   const fetchFabrics = useCallback(async () => {
-    if (!user) return;
+    if (!user || !sessionId) return;
     setLoading(true);
     try {
-      // 1. Fetch pending rows sorted oldest-first for first-in-first-out tag pipeline 
+      // 1. Fetch pending rows sorted oldest-first, filtered by session ID
       const { data: pendingData, error: pendingErr } = await supabase
         .from('fabrics')
         .select('*')
         .eq('status', 'pending')
+        .eq('session_id', sessionId)
         .order('created_at', { ascending: true });
 
       if (pendingErr) throw pendingErr;
 
-      // 2. Fetch completed rows sorted newest-first for real-time history audits
+      // 2. Fetch completed rows sorted newest-first, filtered by session ID
       const { data: completedData, error: completedErr } = await supabase
         .from('fabrics')
         .select('*')
         .eq('status', 'completed')
+        .eq('session_id', sessionId)
         .order('created_at', { ascending: false })
         .limit(20);
 
@@ -95,7 +158,6 @@ export default function TaggingPage() {
       setFabrics(pendingList);
       setCompletedFabrics(completedData || []);
 
-      // If we don't have an active fabric yet, or the current active fabric is no longer in pending list
       const currentActive = activeFabricRef.current;
       if (pendingList.length > 0) {
         const stillPending = currentActive ? pendingList.find(f => f.id === currentActive.id) : null;
@@ -113,19 +175,20 @@ export default function TaggingPage() {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, sessionId]);
 
   // Initialize and check credentials
   useEffect(() => {
+    if (!sessionId) return;
+
     if (isConfigured && user) {
-      // Defer state update to next event loop tick to bypass React 19's sync-setState in mounting effect rule
       const timer = setTimeout(() => {
         fetchFabrics();
       }, 0);
 
       // Realtime subscription mapping: Subscribe to inserts & updates
       const channel = supabase
-        .channel('schema-db-changes')
+        .channel(`schema-changes-${sessionId}`)
         .on(
           'postgres_changes',
           {
@@ -134,8 +197,16 @@ export default function TaggingPage() {
             table: 'fabrics'
           },
           (payload) => {
-            console.log('Real-time notification on database:', payload);
-            fetchFabrics();
+            // Only refresh if payload matches this active session ID
+            const newRow = payload.new as any;
+            const oldRow = payload.old as any;
+            if (
+              (newRow && newRow.session_id === sessionId) ||
+              (oldRow && oldRow.session_id === sessionId)
+            ) {
+              console.log('Real-time database event in session:', payload);
+              fetchFabrics();
+            }
           }
         )
         .subscribe((status) => {
@@ -155,7 +226,6 @@ export default function TaggingPage() {
         loadLocalData();
       }, 0);
 
-      // Listen for captures in other local window tabs under storage
       const handleStorageUpdate = (e: StorageEvent) => {
         loadLocalData();
       };
@@ -165,7 +235,7 @@ export default function TaggingPage() {
         window.removeEventListener('storage', handleStorageUpdate);
       };
     }
-  }, [isConfigured, user, fetchFabrics, loadLocalData]);
+  }, [isConfigured, user, sessionId, fetchFabrics, loadLocalData]);
 
   // Autofocus input whenever active fabric changes
   useEffect(() => {
@@ -197,7 +267,7 @@ export default function TaggingPage() {
   // Tag Fabric and generate code
   const handleSaveAndGenerateQR = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!activeFabric || !fabricName.trim()) return;
+    if (!activeFabric || !fabricName.trim() || !sessionId) return;
 
     setSaving(true);
     const fabricId = activeFabric.id;
@@ -205,7 +275,6 @@ export default function TaggingPage() {
 
     try {
       if (isConfigured) {
-        // Update DB record, attributing the tagger details
         const { error } = await supabase
           .from('fabrics')
           .update({
@@ -221,7 +290,7 @@ export default function TaggingPage() {
         
         await fetchFabrics();
       } else {
-        // Offline / Sandbox Fallback
+        // Offline sandbox mode update
         const queue: Fabric[] = JSON.parse(localStorage.getItem('fabric_local_queue') || '[]');
         const processed: Fabric[] = JSON.parse(localStorage.getItem('fabric_local_completed') || '[]');
 
@@ -240,11 +309,13 @@ export default function TaggingPage() {
         localStorage.setItem('fabric_local_queue', JSON.stringify(updatedQueue));
         localStorage.setItem('fabric_local_completed', JSON.stringify(processed));
 
-        setFabrics(updatedQueue);
-        setCompletedFabrics(processed);
+        // State update
+        setFabrics(updatedQueue.filter(f => f.session_id === sessionId));
+        setCompletedFabrics(processed.filter(f => f.session_id === sessionId));
 
-        if (updatedQueue.length > 0) {
-          setActiveFabric(updatedQueue[0]);
+        const activeQueue = updatedQueue.filter(f => f.session_id === sessionId);
+        if (activeQueue.length > 0) {
+          setActiveFabric(activeQueue[0]);
         } else {
           setActiveFabric(null);
         }
@@ -252,11 +323,10 @@ export default function TaggingPage() {
         window.dispatchEvent(new Event('storage'));
       }
 
-      // Display the completed barcode tag sticker layout
       setSavedQrData({ id: generatedQrId, name: fabricName.trim() });
     } catch (err) {
       console.error(err);
-      alert('Error updating row data: Please check database permissions or RLS policies.');
+      alert('Error updating row data: Please verify connection and database permissions.');
     } finally {
       setSaving(false);
     }
@@ -265,7 +335,7 @@ export default function TaggingPage() {
   // Discard / Request retake
   const handleDiscard = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!activeFabric) return;
+    if (!activeFabric || !sessionId) return;
 
     setSaving(true);
     const fabricId = activeFabric.id;
@@ -296,13 +366,15 @@ export default function TaggingPage() {
         localStorage.setItem('last_rejection', JSON.stringify({
           id: fabricId,
           reason: finalReason,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
+          session_id: sessionId
         }));
 
-        setFabrics(updatedQueue);
+        setFabrics(updatedQueue.filter(f => f.session_id === sessionId));
 
-        if (updatedQueue.length > 0) {
-          setActiveFabric(updatedQueue[0]);
+        const activeQueue = updatedQueue.filter(f => f.session_id === sessionId);
+        if (activeQueue.length > 0) {
+          setActiveFabric(activeQueue[0]);
         } else {
           setActiveFabric(null);
         }
@@ -314,7 +386,7 @@ export default function TaggingPage() {
       setRejectionReason('');
     } catch (err) {
       console.error(err);
-      alert('Error requesting retake. Please verify connection or permissions.');
+      alert('Error requesting retake. Please verify RLS permissions.');
     } finally {
       setSaving(false);
     }
@@ -330,6 +402,7 @@ export default function TaggingPage() {
   };
 
   const testTriggerMockCapture = () => {
+    if (!sessionId) return;
     const randomSeed = Math.floor(Math.random() * 1000);
     const mockRecord: Fabric = {
       id: `demo-uuid-${Date.now()}`,
@@ -338,16 +411,14 @@ export default function TaggingPage() {
       qr_code_id: null,
       status: 'pending',
       created_at: new Date().toISOString(),
-      created_by_email: 'photographer@company.com'
+      created_by_email: 'photographer@company.com',
+      session_id: sessionId
     };
     
     const queue = JSON.parse(localStorage.getItem('fabric_local_queue') || '[]');
     queue.push(mockRecord);
     localStorage.setItem('fabric_local_queue', JSON.stringify(queue));
     
-    const curCount = parseInt(localStorage.getItem('captured_today_count') || '0', 10);
-    localStorage.setItem('captured_today_count', (curCount + 1).toString());
-
     window.dispatchEvent(new Event('storage'));
     loadLocalData();
   };
@@ -356,22 +427,50 @@ export default function TaggingPage() {
     window.print();
   };
 
-  // Filter history log (Digitization Archive) by search query
+  // Filter history log by search query
   const filteredCompletedFabrics = completedFabrics.filter(fabric => {
     const nameMatch = fabric.name?.toLowerCase().includes(searchQuery.toLowerCase()) || false;
     const codeMatch = fabric.qr_code_id?.toLowerCase().includes(searchQuery.toLowerCase()) || false;
     return nameMatch || codeMatch;
   });
 
-  // Auth Protection / Spinner
-  if (authLoading) {
+  // 1. Loading States
+  if (authLoading || sessionResolving) {
     return (
       <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="h-8 w-8 text-indigo-650 animate-spin" />
-          <span className="text-xs text-slate-500 font-medium">Verifying access...</span>
+          <span className="text-xs text-slate-500 font-medium">Resolving active session...</span>
         </div>
       </div>
+    );
+  }
+
+  // 2. Error State: No session or expired session
+  if (!sessionCode || !sessionId) {
+    return (
+      <main className="min-h-screen bg-[#F8FAFC] text-slate-800 flex flex-col justify-center items-center p-6 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-150 rounded-full blur-3xl opacity-20 pointer-events-none" />
+        
+        <div className="w-full max-w-md bg-white border border-slate-200/80 rounded-3xl p-8 shadow-sm text-center space-y-6 relative z-10">
+          <div className="inline-flex h-14 w-14 rounded-2xl bg-rose-50 border border-rose-100 items-center justify-center text-rose-550 mx-auto">
+            <ShieldAlert className="h-7 w-7" />
+          </div>
+          <h2 className="text-xl font-bold text-slate-900">No Active Session</h2>
+          <p className="text-sm text-slate-500 max-w-xs mx-auto leading-relaxed">
+            {errorText || 'Please create or join a collaborative digitization lobby to activate your tagging dashboard.'}
+          </p>
+          <div className="pt-2">
+            <Link
+              href="/dashboard"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-650 hover:bg-indigo-750 text-white rounded-xl font-bold shadow-md shadow-indigo-150 transition-all cursor-pointer border-b-2 border-indigo-805"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              <span>Back to Control Center</span>
+            </Link>
+          </div>
+        </div>
+      </main>
     );
   }
 
@@ -381,13 +480,15 @@ export default function TaggingPage() {
       {/* Top Header Panel */}
       <header className="px-6 py-4 bg-white border-b border-slate-200/80 flex flex-col sm:flex-row sm:items-center sm:justify-between shrink-0 gap-4 relative z-10 shadow-xs">
         <div className="flex items-center gap-3">
-          <div className="h-9 w-9 bg-indigo-50 border border-indigo-100 rounded-lg flex items-center justify-center text-indigo-650">
-            <Laptop className="h-5 w-5" />
-          </div>
+          <Link href="/dashboard" className="h-9 w-9 bg-slate-50 border border-slate-200 rounded-lg flex items-center justify-center text-slate-500 hover:text-slate-800 transition-colors">
+            <ArrowLeft className="h-5 w-5" />
+          </Link>
           <div>
             <h1 className="text-base font-bold text-slate-800 tracking-tight flex items-center gap-2">
               Labeling & Printing Desk
-              <span className="text-[10px] bg-indigo-50 text-indigo-700 font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-md border border-indigo-100">DESKTOP</span>
+              <span className="text-[10px] bg-indigo-50 text-indigo-700 font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-md border border-indigo-100">
+                Lobby: {sessionCode.toUpperCase()}
+              </span>
             </h1>
             <p className="text-xs text-slate-500 font-medium">Review incoming uploads, assign tags, and print physical fabric stickers.</p>
           </div>
@@ -641,7 +742,7 @@ export default function TaggingPage() {
                       </div>
 
                       <div className="space-y-2 mt-2">
-                        <label htmlFor="rejection-reason" className="text-xs font-bold text-slate-500 uppercase tracking-wider block">
+                        <label htmlFor="rejection-reason" className="text-xs font-bold text-slate-550 uppercase tracking-wider block">
                           Reason for Retake
                         </label>
                         <input
@@ -665,7 +766,7 @@ export default function TaggingPage() {
                               key={txt}
                               type="button"
                               onClick={() => setRejectionReason(txt)}
-                              className="text-[10.5px] font-sans px-2.5 py-1 border border-slate-200 bg-slate-50 rounded-lg hover:bg-indigo-50 hover:border-indigo-200 text-slate-600 hover:text-indigo-800 transition-all cursor-pointer font-semibold"
+                              className="text-[10.5px] font-sans px-2.5 py-1 border border-slate-200 bg-slate-50 rounded-lg hover:bg-indigo-55 hover:border-indigo-200 text-slate-650 hover:text-indigo-800 transition-all cursor-pointer font-bold"
                             >
                               {txt}
                             </button>
@@ -680,7 +781,7 @@ export default function TaggingPage() {
                             setIsDiscarding(false);
                             setRejectionReason('');
                           }}
-                          className="py-3 bg-slate-100 hover:bg-slate-200 border border-slate-200 font-bold rounded-xl text-xs uppercase tracking-wider transition-all cursor-pointer text-slate-600 text-center"
+                          className="py-3 bg-slate-100 hover:bg-slate-200 border border-slate-200 font-bold rounded-xl text-xs uppercase tracking-wider transition-all cursor-pointer text-slate-650 text-center"
                           disabled={saving}
                         >
                           Cancel
@@ -821,7 +922,7 @@ export default function TaggingPage() {
                       <p className="text-xs font-bold text-slate-800 truncate">{item.name}</p>
                       <p className="text-[9px] font-mono text-slate-400 tracking-wider truncate mt-0.5">{item.qr_code_id}</p>
                       {item.tagged_by_email && (
-                        <p className="text-[8px] text-slate-400 truncate font-semibold mt-0.5">By: {item.tagged_by_email}</p>
+                        <p className="text-[8px] text-slate-450 truncate font-bold mt-0.5">By: {item.tagged_by_email}</p>
                       )}
                     </div>
                     <div className="bg-white p-0.5 rounded-md shrink-0 border border-slate-200">
@@ -836,5 +937,20 @@ export default function TaggingPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function TaggingPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="h-8 w-8 text-indigo-650 animate-spin" />
+          <span className="text-xs text-slate-500 font-medium">Initializing labeling desk...</span>
+        </div>
+      </div>
+    }>
+      <TaggingPageContent />
+    </Suspense>
   );
 }

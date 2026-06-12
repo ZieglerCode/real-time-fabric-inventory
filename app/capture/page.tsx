@@ -1,24 +1,26 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
-import { Camera, CheckCircle2, RefreshCw, AlertCircle, ArrowLeft, Loader2, Compass, Ban, User, LogOut } from 'lucide-react';
+import React, { useState, useRef, useEffect, Suspense } from 'react';
+import { Camera, CheckCircle2, RefreshCw, AlertCircle, ArrowLeft, Loader2, Compass, Ban, User, ShieldAlert } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/use-auth';
 
-export default function CapturePage() {
-  const { user, loading: authLoading, signOut, isConfigured } = useAuth();
+function CapturePageContent() {
+  const { user, loading: authLoading, isConfigured } = useAuth();
+  const searchParams = useSearchParams();
+  const sessionCode = searchParams.get('session') || '';
+  const router = useRouter();
+
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [sessionResolving, setSessionResolving] = useState(true);
+  
   const [uploading, setUploading] = useState<boolean>(false);
   const [success, setSuccess] = useState<boolean>(false);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [lastUploadedName, setLastUploadedName] = useState<string>('');
-  const [capturedCount, setCapturedCount] = useState<number>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('captured_today_count');
-      return saved ? parseInt(saved, 10) : 0;
-    }
-    return 0;
-  });
+  const [capturedCount, setCapturedCount] = useState<number>(0);
   const [errorText, setErrorText] = useState<string>('');
   
   // Photo preview states
@@ -28,7 +30,63 @@ export default function CapturePage() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Revoke preview URL on unmount to prevent resource memory leaks
+  // Resolve session code to UUID
+  useEffect(() => {
+    const resolveSession = async () => {
+      if (!sessionCode) {
+        setSessionResolving(false);
+        return;
+      }
+      setSessionResolving(true);
+      setErrorText('');
+
+      try {
+        if (isConfigured) {
+          const { data, error } = await supabase
+            .from('sessions')
+            .select('id')
+            .eq('code', sessionCode.toUpperCase())
+            .eq('status', 'active')
+            .maybeSingle();
+
+          if (error) throw error;
+          if (data) {
+            setSessionId(data.id);
+          } else {
+            setErrorText(`Active session "${sessionCode}" not found.`);
+          }
+        } else {
+          // Sandbox mock resolution
+          const mockSessions = JSON.parse(localStorage.getItem('fabric_local_sessions') || '[]');
+          const matched = mockSessions.find((s: any) => s.code === sessionCode.toUpperCase() && s.status === 'active');
+          if (matched) {
+            setSessionId(matched.id);
+          } else {
+            setErrorText(`Active session "${sessionCode}" not found in sandbox.`);
+          }
+        }
+      } catch (err: any) {
+        console.error('Error resolving session:', err);
+        setErrorText('Failed to resolve active session.');
+      } finally {
+        setSessionResolving(false);
+      }
+    };
+
+    if (!authLoading) {
+      resolveSession();
+    }
+  }, [sessionCode, authLoading, isConfigured]);
+
+  // Load session specific count
+  useEffect(() => {
+    if (sessionCode) {
+      const saved = localStorage.getItem(`captured_count_${sessionCode}`);
+      setCapturedCount(saved ? parseInt(saved, 10) : 0);
+    }
+  }, [sessionCode]);
+
+  // Revoke preview URL on unmount
   useEffect(() => {
     return () => {
       if (previewUrl) {
@@ -39,9 +97,9 @@ export default function CapturePage() {
 
   // Real-time listener: receive instant alerts when tagging operator rejects snapshots
   useEffect(() => {
-    if (isConfigured && user) {
+    if (isConfigured && user && sessionId) {
       const channel = supabase
-        .channel('capture-db-rejections')
+        .channel(`capture-rejections-${sessionId}`)
         .on(
           'postgres_changes',
           {
@@ -51,7 +109,12 @@ export default function CapturePage() {
           },
           (payload) => {
             console.log('Capture subscription update received:', payload);
-            if (payload.new && payload.new.status === 'discarded' && payload.new.created_by === user?.id) {
+            if (
+              payload.new && 
+              payload.new.status === 'discarded' && 
+              payload.new.created_by === user?.id &&
+              payload.new.session_id === sessionId
+            ) {
               setRejectionAlert({
                 id: payload.new.id,
                 reason: payload.new.rejection_reason || 'Photo quality check failed (unsuitable crop / poor lighting)',
@@ -65,14 +128,14 @@ export default function CapturePage() {
       return () => {
         supabase.removeChannel(channel);
       };
-    } else {
+    } else if (!isConfigured && sessionId) {
       const handleStorageUpdate = () => {
         const rejectionStr = localStorage.getItem('last_rejection');
         if (rejectionStr) {
           try {
             const parsed = JSON.parse(rejectionStr);
             const dismissedId = localStorage.getItem('last_rejection_dismissed_id');
-            if (parsed.id !== dismissedId) {
+            if (parsed.id !== dismissedId && parsed.session_id === sessionId) {
               setRejectionAlert(parsed);
             }
           } catch (e) {
@@ -82,15 +145,15 @@ export default function CapturePage() {
       };
 
       window.addEventListener('storage', handleStorageUpdate);
-      handleStorageUpdate(); // Sync initially
+      handleStorageUpdate();
       return () => {
         window.removeEventListener('storage', handleStorageUpdate);
       };
     }
-  }, [isConfigured, user]);
+  }, [isConfigured, user, sessionId]);
 
   const triggerCamera = () => {
-    if (uploading) return;
+    if (uploading || !sessionId) return;
     setErrorText('');
     fileInputRef.current?.click();
   };
@@ -102,19 +165,18 @@ export default function CapturePage() {
     const file = files[0];
     setSelectedFile(file);
     
-    // Revoke old URL if existing to keep memory footprint low
     if (previewUrl) {
       URL.revokeObjectURL(previewUrl);
     }
     setPreviewUrl(URL.createObjectURL(file));
     
-    // Clear the input value so the same file name can be triggered again easily
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
   };
 
   const uploadPhoto = async (file: File) => {
+    if (!sessionId) return;
     setUploading(true);
     setUploadProgress(20);
     setErrorText('');
@@ -146,14 +208,15 @@ export default function CapturePage() {
 
         setUploadProgress(85);
 
-        // 3. Insert metadata, attributing creator to user id
+        // 3. Insert metadata with session association
         const { error: dbError } = await supabase
           .from('fabrics')
           .insert({
             image_url: publicUrl,
             status: 'pending',
             created_by: user?.id,
-            created_by_email: user?.email
+            created_by_email: user?.email,
+            session_id: sessionId
           });
 
         if (dbError) {
@@ -164,7 +227,7 @@ export default function CapturePage() {
       } else {
         // --- OFFLINE / LOCAL SANDBOX MODE ---
         setUploadProgress(50);
-        await new Promise((resolve) => setTimeout(resolve, 800)); // Simulate latency
+        await new Promise((resolve) => setTimeout(resolve, 800));
 
         const randomSeed = Math.floor(Math.random() * 1000);
         const demoImageUrl = `https://picsum.photos/seed/${randomSeed}/800/600`;
@@ -176,13 +239,14 @@ export default function CapturePage() {
           name: null,
           qr_code_id: null,
           status: 'pending',
-          created_at: new Date().toISOString()
+          created_at: new Date().toISOString(),
+          created_by_email: 'photographer@company.com',
+          session_id: sessionId
         };
         
         pendingQueue.push(newRecord);
         localStorage.setItem('fabric_local_queue', JSON.stringify(pendingQueue));
 
-        // Dispatch storage event to notify other browser tabs
         window.dispatchEvent(new Event('storage'));
 
         setUploadProgress(100);
@@ -191,7 +255,7 @@ export default function CapturePage() {
       setSuccess(true);
       const updatedCount = capturedCount + 1;
       setCapturedCount(updatedCount);
-      localStorage.setItem('captured_today_count', updatedCount.toString());
+      localStorage.setItem(`captured_count_${sessionCode}`, updatedCount.toString());
       setLastUploadedName(file.name);
 
       setTimeout(() => {
@@ -201,21 +265,49 @@ export default function CapturePage() {
 
     } catch (err: any) {
       console.error(err);
-      setErrorText(err?.message || 'Failed uploading. Please verify your connection and permissions.');
+      setErrorText(err?.message || 'Failed uploading. Verify connection or permissions.');
     } finally {
       setUploading(false);
     }
   };
 
-  // Loading / Auth protection state
-  if (authLoading) {
+  // 1. Loading States
+  if (authLoading || sessionResolving) {
     return (
       <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="h-8 w-8 text-indigo-650 animate-spin" />
-          <span className="text-xs text-slate-500 font-medium">Loading session...</span>
+          <span className="text-xs text-slate-500 font-medium">Resolving active session...</span>
         </div>
       </div>
+    );
+  }
+
+  // 2. Error State: No session or expired session
+  if (!sessionCode || !sessionId) {
+    return (
+      <main className="min-h-screen bg-[#F8FAFC] text-slate-800 flex flex-col justify-center items-center p-6 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-150 rounded-full blur-3xl opacity-20 pointer-events-none" />
+        
+        <div className="w-full max-w-md bg-white border border-slate-200/80 rounded-3xl p-8 shadow-sm text-center space-y-6 relative z-10">
+          <div className="inline-flex h-14 w-14 rounded-2xl bg-rose-50 border border-rose-100 items-center justify-center text-rose-550 mx-auto">
+            <ShieldAlert className="h-7 w-7" />
+          </div>
+          <h2 className="text-xl font-bold text-slate-900">No Active Session</h2>
+          <p className="text-sm text-slate-500 max-w-xs mx-auto leading-relaxed">
+            {errorText || 'Please create or join a collaborative digitization lobby to activate your camera upload feed.'}
+          </p>
+          <div className="pt-2">
+            <Link
+              href="/dashboard"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-650 hover:bg-indigo-750 text-white rounded-xl font-bold shadow-md shadow-indigo-150 transition-all cursor-pointer border-b-2 border-indigo-805"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              <span>Back to Control Center</span>
+            </Link>
+          </div>
+        </div>
+      </main>
     );
   }
 
@@ -226,19 +318,21 @@ export default function CapturePage() {
       <div className="absolute bottom-0 left-0 w-80 h-80 bg-violet-100 rounded-full blur-3xl opacity-20 pointer-events-none -ml-20 -mb-20" />
 
       {/* Top Navigator */}
-      <header className="px-4 py-3 bg-white border-b border-slate-200/80 flex items-center justify-between shrink-0 relative z-10">
-        <Link href="/" className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-850 transition-colors py-1.5 font-semibold">
+      <header className="px-4 py-3 bg-white border-b border-slate-200/80 flex items-center justify-between shrink-0 relative z-10 shadow-xs">
+        <Link href="/dashboard" className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-850 transition-colors py-1.5 font-semibold">
           <ArrowLeft className="h-4 w-4" />
-          <span>Home</span>
+          <span>Exit Workspace</span>
         </Link>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <span className="h-2 w-2 rounded-full bg-indigo-500 animate-pulse" />
-          <span className="text-[11px] font-semibold text-indigo-650 tracking-wider uppercase">Camera Upload Desk</span>
+          <span className="text-[11px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100 uppercase tracking-wide">
+            Lobby: {sessionCode.toUpperCase()}
+          </span>
         </div>
         {isConfigured && user ? (
           <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium bg-slate-50 px-2 py-1 rounded-lg border border-slate-200/50">
             <User className="h-3.5 w-3.5" />
-            <span className="max-w-[80px] truncate">{user.email?.split('@')[0]}</span>
+            <span className="max-w-[70px] truncate">{user.email?.split('@')[0]}</span>
           </div>
         ) : (
           <div className="h-6 w-6" />
@@ -295,7 +389,7 @@ export default function CapturePage() {
               <div>
                 <p className="text-xs font-bold text-amber-800">Demo Mode (Offline Sandbox)</p>
                 <p className="text-[11px] text-amber-700 mt-0.5 font-sans leading-relaxed">
-                  Operating without server keys. Using local browser storage.
+                  Lobby session operates locally within your browser tabs.
                 </p>
               </div>
             </div>
@@ -303,13 +397,13 @@ export default function CapturePage() {
 
           <div className="bg-white rounded-2xl p-5 border border-slate-200/80 flex justify-between items-center shadow-xs">
             <div>
-              <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Uploaded Today</p>
+              <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Lobby Uploads</p>
               <h2 className="text-3xl font-bold text-slate-900 tracking-tight mt-1">{capturedCount} <span className="text-xs font-normal text-slate-400 font-sans">samples</span></h2>
             </div>
             <button 
               onClick={() => {
                 setCapturedCount(0);
-                localStorage.removeItem('captured_today_count');
+                localStorage.removeItem(`captured_count_${sessionCode}`);
               }}
               className="text-[10px] hover:text-rose-600 text-slate-400 border border-slate-200 hover:border-rose-100 bg-slate-50 px-2.5 py-1.5 rounded-lg transition-colors font-semibold cursor-pointer"
             >
@@ -439,5 +533,20 @@ export default function CapturePage() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function CapturePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="h-8 w-8 text-indigo-650 animate-spin" />
+          <span className="text-xs text-slate-500 font-medium">Initializing scanner interface...</span>
+        </div>
+      </div>
+    }>
+      <CapturePageContent />
+    </Suspense>
   );
 }
