@@ -31,7 +31,7 @@ Configure the following environment variables in the Coolify App Dashboard.
 Open the SQL Editor in your Supabase project dashboard and run the following script. This initializes the required database schema, realtime subscriptions, and public storage bucket.
 
 ```sql
--- 1. CREATE FABRICS TABLE
+-- 1. CREATE FABRICS TABLE WITH USER ATTRIBUTIONS
 create table if not exists fabrics (
   id uuid default gen_random_uuid() primary key,
   image_url text not null,
@@ -40,31 +40,58 @@ create table if not exists fabrics (
   status text default 'pending', -- 'pending', 'completed', or 'discarded'
   rejection_reason text,
   discarded_at timestamp with time zone,
-  created_at timestamp with time zone default now()
+  created_at timestamp with time zone default now(),
+  created_by uuid references auth.users(id) default auth.uid(),
+  tagged_by uuid references auth.users(id),
+  created_by_email text,
+  tagged_by_email text
 );
 
 -- 2. ENABLE REALTIME REPLICATION FOR THE FABRICS TABLE
 alter publication supabase_realtime add table fabrics;
 
--- 3. ENABLE ROW LEVEL SECURITY & PERMIT PUBLIC ACCESS FOR SPEEDY SETUP
+-- 3. ENABLE ROW LEVEL SECURITY & PERMIT SECURE AUTHENTICATED ACCESS
 alter table fabrics enable row level security;
 
-create policy "Allow all public operations for fabrics"
-  on fabrics for all
+drop policy if exists "Allow all public operations for fabrics" on fabrics;
+drop policy if exists "Allow authenticated users to read fabrics" on fabrics;
+drop policy if exists "Allow authenticated users to insert fabrics" on fabrics;
+drop policy if exists "Allow authenticated users to update fabrics" on fabrics;
+
+create policy "Allow authenticated users to read fabrics"
+  on fabrics for select
+  to authenticated
+  using (true);
+
+create policy "Allow authenticated users to insert fabrics"
+  on fabrics for insert
+  to authenticated
+  with check (auth.uid() = created_by);
+
+create policy "Allow authenticated users to update fabrics"
+  on fabrics for update
+  to authenticated
   using (true)
   with check (true);
 
--- 4. INSERT STORAGE BUCKETS AND CONFIGURE POLICIES
+-- 4. INSERT STORAGE BUCKETS AND CONFIGURE SECURE POLICIES
 insert into storage.buckets (id, name, public)
 values ('fabric-images', 'fabric-images', true)
 on conflict (id) do nothing;
 
-create policy "Allow public uploads onto fabric-images"
+drop policy if exists "Allow public uploads onto fabric-images" on storage.objects;
+drop policy if exists "Allow public read access of fabric-images" on storage.objects;
+drop policy if exists "Allow authenticated users to upload fabric images" on storage.objects;
+drop policy if exists "Allow authenticated users to read fabric images" on storage.objects;
+
+create policy "Allow authenticated users to upload fabric images"
   on storage.objects for insert
+  to authenticated
   with check (bucket_id = 'fabric-images');
 
-create policy "Allow public read access of fabric-images"
+create policy "Allow authenticated users to read fabric images"
   on storage.objects for select
+  to authenticated
   using (bucket_id = 'fabric-images');
 ```
 
