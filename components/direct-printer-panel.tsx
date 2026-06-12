@@ -69,8 +69,10 @@ export default function DirectPrinterPanel({
           className="bg-white border border-slate-300 p-4 rounded-2xl flex flex-col justify-between items-center text-center shadow-xs w-72 h-44 print:border-none print:shadow-none print:rounded-none print:p-0 print:w-[2.2in] print:h-[1.2in] print:m-0"
         >
           <div className="w-full min-w-0">
-            <p className="text-[12px] font-extrabold text-slate-950 truncate print:text-[10px] print:leading-tight">
-              {savedQrData.name}
+            <p className={`text-[12px] font-extrabold truncate print:text-[10px] print:leading-tight ${
+              savedQrData.name ? 'text-slate-950' : 'text-slate-400 italic'
+            }`}>
+              {savedQrData.name || 'Unnamed Fabric'}
             </p>
             <p className="text-[8px] font-mono text-slate-400 font-bold uppercase tracking-wider mt-0.5 print:text-[7px]">
               ID: {savedQrData.id}

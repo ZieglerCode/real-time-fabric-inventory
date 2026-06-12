@@ -442,8 +442,10 @@ export default function BulkPrintModal({
                       }}
                     >
                       {bulkShowTitle && (
-                        <p className="text-[10px] font-extrabold text-slate-955 truncate w-full leading-tight">
-                          {fabric.name}
+                        <p className={`text-[10px] font-extrabold truncate w-full leading-tight ${
+                          fabric.name ? 'text-slate-955' : 'text-slate-400 italic'
+                        }`}>
+                          {fabric.name || 'Unnamed Fabric'}
                         </p>
                       )}
                       {bulkShowRef && (
