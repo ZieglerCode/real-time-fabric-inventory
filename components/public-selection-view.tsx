@@ -10,10 +10,12 @@ import {
   removeFabricFromSelection,
   type PublicFabric,
 } from '@/lib/fabric-selection';
+import PublicQrScanner from './public-qr-scanner';
 
 export default function PublicSelectionView() {
   const [items, setItems] = useState<PublicFabric[]>([]);
   const [copied, setCopied] = useState(false);
+  const [scannerOpen, setScannerOpen] = useState(false);
 
   useEffect(() => {
     const syncSelection = () => setItems(readFabricSelection());
@@ -130,7 +132,7 @@ export default function PublicSelectionView() {
             {items.length === 0 ? (
               <button
                 type="button"
-                onClick={() => alert('Open your phone camera and scan a fabric QR code.')}
+                onClick={() => setScannerOpen(true)}
                 className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-4 text-sm font-black text-white"
               >
                 <ScanLine className="h-4 w-4" />
@@ -140,7 +142,7 @@ export default function PublicSelectionView() {
               <div className="grid grid-cols-4 gap-2">
                 <button
                   type="button"
-                  onClick={() => alert('Open your phone camera and scan the next fabric QR code.')}
+                  onClick={() => setScannerOpen(true)}
                   className="inline-flex flex-col items-center justify-center rounded-2xl bg-[#F7F4EF] px-2 py-3 text-[10px] font-black text-slate-800"
                 >
                   <ScanLine className="mb-1 h-4 w-4" />
@@ -183,6 +185,7 @@ export default function PublicSelectionView() {
           </div>
         </div>
       </div>
+      <PublicQrScanner isOpen={scannerOpen} onClose={() => setScannerOpen(false)} />
     </main>
   );
 }

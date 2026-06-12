@@ -9,6 +9,7 @@ import {
   readFabricSelection,
   type PublicFabric,
 } from '@/lib/fabric-selection';
+import PublicQrScanner from './public-qr-scanner';
 
 interface PublicFabricViewerProps {
   qrCodeId: string;
@@ -21,6 +22,7 @@ export default function PublicFabricViewer({ qrCodeId }: PublicFabricViewerProps
   const [loading, setLoading] = useState(true);
   const [errorText, setErrorText] = useState('');
   const [copied, setCopied] = useState(false);
+  const [scannerOpen, setScannerOpen] = useState(false);
 
   useEffect(() => {
     const loadFabric = async () => {
@@ -212,17 +214,14 @@ export default function PublicFabricViewer({ qrCodeId }: PublicFabricViewerProps
                 {isSaved ? <Check className="mb-1 h-4 w-4" /> : <Heart className="mb-1 h-4 w-4" />}
                 {isSaved ? 'Saved' : 'Save'}
               </button>
-              <a
-                href="camera://"
-                onClick={(e) => {
-                  e.preventDefault();
-                  alert('Open your phone camera and scan the next fabric QR code.');
-                }}
+              <button
+                type="button"
+                onClick={() => setScannerOpen(true)}
                 className="inline-flex flex-col items-center justify-center rounded-2xl bg-[#F7F4EF] px-3 py-3 text-[11px] font-black text-slate-800"
               >
                 <ScanLine className="mb-1 h-4 w-4" />
                 Scan more
-              </a>
+              </button>
               <button
                 type="button"
                 onClick={handleShare}
@@ -235,6 +234,7 @@ export default function PublicFabricViewer({ qrCodeId }: PublicFabricViewerProps
           </div>
         </div>
       </div>
+      <PublicQrScanner isOpen={scannerOpen} onClose={() => setScannerOpen(false)} />
     </main>
   );
 }
