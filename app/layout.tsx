@@ -1,6 +1,7 @@
 import type {Metadata} from 'next';
 import { Outfit } from 'next/font/google';
 import { AuthProvider } from '@/hooks/use-auth';
+import Navigation from '@/components/navigation';
 import './globals.css';
 
 const outfit = Outfit({
@@ -41,7 +42,9 @@ export default function RootLayout({children}: {children: React.ReactNode}) {
     <html lang="en" className={`${outfit.variable} font-sans`}>
       <body suppressHydrationWarning className="bg-[#F8FAFC]">
         <AuthProvider>
-          {children}
+          <Navigation>
+            {children}
+          </Navigation>
         </AuthProvider>
       </body>
     </html>
