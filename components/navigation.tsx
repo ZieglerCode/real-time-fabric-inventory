@@ -33,7 +33,7 @@ export default function Navigation({ children }: { children: React.ReactNode }) 
   }, []);
 
   // Don't show navigation on landing page or login page
-  const isAuthPage = pathname === '/login' || pathname === '/';
+  const isAuthPage = pathname === '/login' || pathname === '/' || pathname.startsWith('/public');
   if (isAuthPage) {
     return <>{children}</>;
   }

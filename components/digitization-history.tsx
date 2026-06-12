@@ -3,6 +3,7 @@
 import React from 'react';
 import { ClipboardCheck, Search } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
+import { getPublicFabricViewerUrl } from '@/lib/fabric-public-url';
 
 interface Fabric {
   id: string;
@@ -86,7 +87,7 @@ export default function DigitizationHistory({
                 )}
               </div>
               <div className="bg-white p-0.5 rounded-md shrink-0 border border-slate-200">
-                <QRCodeSVG value={item.qr_code_id || ''} size={28} />
+                <QRCodeSVG value={item.qr_code_id ? getPublicFabricViewerUrl(item.qr_code_id) : ''} size={28} />
               </div>
             </button>
           ))}

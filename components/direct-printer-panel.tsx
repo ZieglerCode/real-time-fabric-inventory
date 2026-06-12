@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { CheckCircle2, Printer, Usb, Bluetooth, AlertCircle, Loader2 } from 'lucide-react';
 import { LabelCodeKind, LabelLayout, usePrinter, PrinterLanguage } from '@/hooks/use-printer';
 import ScannableCode, { CodeType } from '@/components/scannable-code';
+import { getPublicFabricViewerUrl } from '@/lib/fabric-public-url';
 
 interface DirectPrinterPanelProps {
   savedQrData: { id: string; name: string; teamName?: string } | null;
@@ -54,6 +55,7 @@ export default function DirectPrinterPanel({
   const [minimalCodeKind, setMinimalCodeKind] = useState<LabelCodeKind>('2d');
 
   if (!savedQrData) return null;
+  const publicViewerUrl = getPublicFabricViewerUrl(savedQrData.id);
 
   const handlePrint = async () => {
     if (printerMode === 'browser') {
@@ -64,7 +66,8 @@ export default function DirectPrinterPanel({
         qrCodeId: savedQrData.id || '',
         sessionCode: sessionCode || 'SANDBOX',
         layout: labelLayout,
-        codeKind: minimalCodeKind
+        codeKind: minimalCodeKind,
+        publicUrl: publicViewerUrl
       };
       await printDirect(labelData, connectionStatus === 'local');
     }
@@ -114,7 +117,7 @@ export default function DirectPrinterPanel({
             {isMinimal ? (
               minimalCodeKind === '2d' ? (
                 <div className="shrink-0">
-                  <ScannableCode value={savedQrData.id} type={print2DFormat} scale={qrScale} />
+                  <ScannableCode value={publicViewerUrl} type={print2DFormat} scale={qrScale} />
                 </div>
               ) : (
                 <div className="shrink-0 max-w-[246px] overflow-hidden">
@@ -127,7 +130,7 @@ export default function DirectPrinterPanel({
               /* Both codes: QR square left | slim barcode right */
               <>
                 <div className="shrink-0">
-                  <ScannableCode value={savedQrData.id} type={print2DFormat} scale={qrScale} />
+                  <ScannableCode value={publicViewerUrl} type={print2DFormat} scale={qrScale} />
                 </div>
                 <div className="shrink-0 overflow-hidden max-w-[136px]">
                   <ScannableCode value={savedQrData.id} type={print1DFormat} scale={barScale} height={barHeight} />
@@ -136,7 +139,7 @@ export default function DirectPrinterPanel({
             ) : show2D ? (
               /* Only 2D — centered, bigger */
               <div className="shrink-0">
-                <ScannableCode value={savedQrData.id} type={print2DFormat} scale={qrScale} />
+                  <ScannableCode value={publicViewerUrl} type={print2DFormat} scale={qrScale} />
               </div>
             ) : (
               /* Only 1D barcode — centered, wider */

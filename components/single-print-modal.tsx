@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Printer, X, Usb, Bluetooth, AlertCircle, Loader2 } from 'lucide-react';
 import ScannableCode, { CodeType } from './scannable-code';
 import { LabelCodeKind, LabelLayout, PrinterLanguage } from '@/hooks/use-printer';
+import { getPublicFabricViewerUrl } from '@/lib/fabric-public-url';
 
 interface Fabric {
   id: string;
@@ -72,6 +73,7 @@ export default function SinglePrintModal({
   const barScale = isMinimal ? 1.05 : both ? 0.8 : 1;
   const barHeight = isMinimal ? 12 : both ? 7 : 10;
   const codeValue = activePrintFabric.qr_code_id || '';
+  const publicViewerUrl = getPublicFabricViewerUrl(codeValue);
   const footerText = activePrintFabric.team_name
     ? `${activePrintFabric.team_name} Textile`
     : 'Textile Catalog';
@@ -120,7 +122,7 @@ export default function SinglePrintModal({
               {isMinimal ? (
                 minimalCodeKind === '2d' ? (
                   <div className="shrink-0">
-                    <ScannableCode value={codeValue} type={print2DFormat} scale={qrScale} />
+                    <ScannableCode value={publicViewerUrl} type={print2DFormat} scale={qrScale} />
                   </div>
                 ) : (
                   <div className="shrink-0 max-w-[246px] overflow-hidden">
@@ -132,7 +134,7 @@ export default function SinglePrintModal({
               ) : both ? (
                 <>
                   <div className="shrink-0">
-                    <ScannableCode value={codeValue} type={print2DFormat} scale={qrScale} />
+                    <ScannableCode value={publicViewerUrl} type={print2DFormat} scale={qrScale} />
                   </div>
                   <div className="shrink-0 overflow-hidden max-w-[136px]">
                     <ScannableCode value={codeValue} type={print1DFormat} scale={barScale} height={barHeight} />
@@ -140,7 +142,7 @@ export default function SinglePrintModal({
                 </>
               ) : show2D ? (
                 <div className="shrink-0">
-                  <ScannableCode value={codeValue} type={print2DFormat} scale={qrScale} />
+                  <ScannableCode value={publicViewerUrl} type={print2DFormat} scale={qrScale} />
                 </div>
               ) : (
                 <div className="shrink-0 max-w-[256px] overflow-hidden">

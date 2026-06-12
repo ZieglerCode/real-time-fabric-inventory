@@ -14,6 +14,7 @@ import ScannableCode, { CodeType } from '@/components/scannable-code';
 import GalleryOverlay from '@/components/gallery-overlay';
 import SinglePrintModal from '@/components/single-print-modal';
 import BulkPrintModal from '@/components/bulk-print-modal';
+import { getPublicFabricViewerUrl } from '@/lib/fabric-public-url';
 
 interface Fabric {
   id: string;
@@ -150,7 +151,8 @@ export default function DigitizationLogPage() {
           qrCodeId: fabric.qr_code_id || '',
           sessionCode: fabric.session_code || 'SANDBOX',
           layout: bulkLabelLayout,
-          codeKind: bulkMinimalCodeKind
+          codeKind: bulkMinimalCodeKind,
+          publicUrl: fabric.qr_code_id ? getPublicFabricViewerUrl(fabric.qr_code_id) : undefined
         };
         
         const success = await printDirect(labelData, !isConfigured);
@@ -405,7 +407,10 @@ export default function DigitizationLogPage() {
         qrCodeId: activePrintFabric.qr_code_id || '',
         sessionCode: activePrintFabric.session_code || 'SANDBOX',
         layout: options?.layout,
-        codeKind: options?.codeKind
+        codeKind: options?.codeKind,
+        publicUrl: activePrintFabric.qr_code_id
+          ? getPublicFabricViewerUrl(activePrintFabric.qr_code_id)
+          : undefined
       };
       await printDirect(labelData, !isConfigured);
     }
@@ -720,7 +725,7 @@ export default function DigitizationLogPage() {
                         <td className="py-4 text-center">
                           {fabric.qr_code_id ? (
                             <div className="inline-flex p-1 bg-white border border-slate-200 rounded-lg shadow-2xs" title={fabric.qr_code_id}>
-                              <ScannableCode value={fabric.qr_code_id} type={table2DFormat} scale={1.2} />
+                              <ScannableCode value={getPublicFabricViewerUrl(fabric.qr_code_id)} type={table2DFormat} scale={1.2} />
                             </div>
                           ) : (
                             <span className="text-slate-300 font-semibold">—</span>
@@ -859,7 +864,7 @@ export default function DigitizationLogPage() {
                         <div className="flex flex-col items-center gap-1.5">
                           <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">{table2DFormat}</span>
                           <div className="bg-white p-1 rounded-xl border border-slate-150 shadow-3xs">
-                            <ScannableCode value={fabric.qr_code_id} type={table2DFormat} scale={1} />
+                            <ScannableCode value={getPublicFabricViewerUrl(fabric.qr_code_id)} type={table2DFormat} scale={1} />
                           </div>
                         </div>
                         <div className="flex flex-col items-center gap-1.5">

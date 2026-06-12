@@ -1,3 +1,5 @@
+import { getPublicFabricViewerUrl } from './fabric-public-url';
+
 export type PrinterLanguage = 'TSPL' | 'ZPL';
 export type LabelLayout = 'standard' | 'minimal';
 export type LabelCodeKind = '2d' | '1d';
@@ -9,12 +11,14 @@ export interface LabelData {
   teamName?: string;
   layout?: LabelLayout;
   codeKind?: LabelCodeKind;
+  publicUrl?: string;
 }
 
 export function compileLabel(data: LabelData, language: PrinterLanguage): ArrayBuffer {
   // Safe characters cleaning: escape double quotes for printer strings
   const cleanName = data.name.substring(0, 30).replace(/"/g, '\\"');
   const cleanId = data.qrCodeId.toUpperCase().replace(/[^A-Z0-9\-]/g, '');
+  const cleanPublicUrl = (data.publicUrl || getPublicFabricViewerUrl(cleanId)).replace(/"/g, '\\"');
   const catalogLine = data.teamName
     ? `${data.teamName.substring(0, 20).toUpperCase()} TEXTILE`
     : 'TEXTILE CATALOG';
@@ -33,7 +37,7 @@ export function compileLabel(data: LabelData, language: PrinterLanguage): ArrayB
           'CLS',
           `TEXT 20,22,"ROMAN.TTF",0,1,1,"${cleanName}"`,
           codeKind === '2d'
-            ? `QRCODE 150,58,M,5,A,0,"${cleanId}"`
+            ? `QRCODE 122,58,M,4,A,0,"${cleanPublicUrl}"`
             : `BARCODE 55,78,"128",72,0,0,2,2,"${cleanId}"`,
           'PRINT 1,1',
           ''
@@ -48,7 +52,7 @@ export function compileLabel(data: LabelData, language: PrinterLanguage): ArrayB
           // Reference ID (no "ID:" prefix)
           `TEXT 20,60,"ROMAN.TTF",0,1,0.8,"${cleanId}"`,
           // 2D QR Code: QRCODE x, y, ECC, cell_width, mode, rotation, "content"
-          `QRCODE 20,95,M,4,A,0,"${cleanId}"`,
+          `QRCODE 20,95,M,3,A,0,"${cleanPublicUrl}"`,
           // 1D Barcode (Code 128): BARCODE x, y, type, height, readable, rotation, narrow, wide, "content"
           `BARCODE 180,95,"128",48,0,0,2,2,"${cleanId}"`,
           // Footer: team/catalog name left, no session code on right
@@ -65,7 +69,7 @@ export function compileLabel(data: LabelData, language: PrinterLanguage): ArrayB
           '^LL240',
           `^FO20,24^A0N,28,28^FD${cleanName}^FS`,
           codeKind === '2d'
-            ? `^FO145,64^BQN,2,6^FDM,${cleanId}^FS`
+            ? `^FO125,64^BQN,2,4^FDM,${cleanPublicUrl}^FS`
             : `^FO55,82^BY2^BCN,82,N,N,N^FD${cleanId}^FS`,
           '^XZ',
           ''
@@ -79,7 +83,7 @@ export function compileLabel(data: LabelData, language: PrinterLanguage): ArrayB
           // Reference ID (no "ID:" prefix)
           `^FO20,55^A0N,18,18^FD${cleanId}^FS`,
           // 2D QR Code
-          `^FO20,95^BQN,2,4^FDM,${cleanId}^FS`,
+          `^FO20,95^BQN,2,3^FDM,${cleanPublicUrl}^FS`,
           // 1D Barcode Code 128 (width=2, height=48)
           `^FO180,95^BY2^BCN,48,N,N,N^FD${cleanId}^FS`,
           // Footer: team/catalog name only

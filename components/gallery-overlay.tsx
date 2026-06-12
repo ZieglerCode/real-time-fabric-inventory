@@ -3,6 +3,7 @@
 import React, { useEffect } from 'react';
 import { Compass, X, ArrowLeft, Printer, Download } from 'lucide-react';
 import ScannableCode from './scannable-code';
+import { getPublicFabricViewerUrl } from '@/lib/fabric-public-url';
 
 interface Fabric {
   id: string;
@@ -226,7 +227,7 @@ export default function GalleryOverlay({
                 </span>
                 <div className="bg-white p-4 rounded-2xl flex flex-col items-center justify-center gap-4">
                   <div className="p-1 border border-slate-100 rounded-lg">
-                    <ScannableCode value={activeFabric.qr_code_id} type="qrcode" scale={1.4} />
+                    <ScannableCode value={getPublicFabricViewerUrl(activeFabric.qr_code_id)} type="qrcode" scale={1.4} />
                   </div>
                   <div className="scale-90 origin-center">
                     <ScannableCode
