@@ -912,57 +912,103 @@ export default function DashboardPage() {
                     )}
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                      <thead>
-                        <tr className="border-b border-slate-100 text-slate-400 text-[10px] font-bold uppercase tracking-wider pb-2">
-                          <th className="pb-3">Lobby Code</th>
-                          <th className="pb-3">Hosting Team</th>
-                          <th className="pb-3 text-center">Occupants (Heartbeats)</th>
-                          <th className="pb-3 text-right pr-4">Action</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100 text-xs">
-                        {activeSessions.map((session) => {
-                          const stats = getSessionConnectionsCount(session.id);
-                          return (
-                            <tr key={session.id} className="hover:bg-slate-50/50 transition-colors">
-                              <td className="py-4 font-mono font-bold text-slate-800 uppercase tracking-wide">
+                  <>
+                    {/* Desktop Table View (md screens and wider) */}
+                    <div className="hidden md:block overflow-x-auto">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="border-b border-slate-100 text-slate-400 text-[10px] font-bold uppercase tracking-wider pb-2">
+                            <th className="pb-3">Lobby Code</th>
+                            <th className="pb-3">Hosting Team</th>
+                            <th className="pb-3 text-center">Occupants (Heartbeats)</th>
+                            <th className="pb-3 text-right pr-4">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 text-xs">
+                          {activeSessions.map((session) => {
+                            const stats = getSessionConnectionsCount(session.id);
+                            return (
+                              <tr key={session.id} className="hover:bg-slate-50/50 transition-colors">
+                                <td className="py-4 font-mono font-bold text-slate-800 uppercase tracking-wide">
+                                  {session.code}
+                                </td>
+                                <td className="py-4 font-semibold text-slate-500">
+                                  {session.team_name}
+                                </td>
+                                <td className="py-4 text-center">
+                                  <div className="inline-flex items-center gap-1.5">
+                                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold border ${stats.photographers > 0 ? 'bg-indigo-50 text-indigo-700 border-indigo-100' : 'bg-slate-50 text-slate-400 border-slate-100'}`}>
+                                      📷 {stats.photographers}
+                                    </span>
+                                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold border ${stats.taggers > 0 ? 'bg-violet-50 text-violet-700 border-violet-100' : 'bg-slate-50 text-slate-400 border-slate-100'}`}>
+                                      💻 {stats.taggers}/1
+                                    </span>
+                                  </div>
+                                </td>
+                                <td className="py-4 text-right pr-4">
+                                  <button
+                                    onClick={() => {
+                                      setSelectedSession(session);
+                                      localStorage.setItem('ziegler_active_session_code', session.code);
+                                      localStorage.setItem('ziegler_active_session_id', session.id);
+                                      localStorage.setItem('ziegler_active_session_team_id', session.team_id);
+                                    }}
+                                    className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-650 hover:text-indigo-805 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition-all cursor-pointer"
+                                  >
+                                    <span>Choose Role</span>
+                                    <ArrowRight className="h-3.5 w-3.5" />
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Mobile Card List View (visible on screen sizes below md) */}
+                    <div className="md:hidden space-y-3">
+                      {activeSessions.map((session) => {
+                        const stats = getSessionConnectionsCount(session.id);
+                        return (
+                          <div key={session.id} className="bg-slate-50/50 border border-slate-200/60 rounded-2xl p-4.5 space-y-3 hover:bg-indigo-50/10 transition-colors">
+                            <div className="flex justify-between items-center">
+                              <span className="font-mono font-extrabold text-slate-800 uppercase tracking-wide text-sm">
                                 {session.code}
-                              </td>
-                              <td className="py-4 font-semibold text-slate-500">
+                              </span>
+                              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
                                 {session.team_name}
-                              </td>
-                              <td className="py-4 text-center">
-                                <div className="inline-flex items-center gap-1.5">
-                                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold border ${stats.photographers > 0 ? 'bg-indigo-50 text-indigo-700 border-indigo-100' : 'bg-slate-50 text-slate-400 border-slate-100'}`}>
-                                    📷 {stats.photographers}
-                                  </span>
-                                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold border ${stats.taggers > 0 ? 'bg-violet-50 text-violet-700 border-violet-100' : 'bg-slate-50 text-slate-400 border-slate-100'}`}>
-                                    💻 {stats.taggers}/1
-                                  </span>
-                                </div>
-                              </td>
-                              <td className="py-4 text-right pr-4">
-                                <button
-                                  onClick={() => {
-                                    setSelectedSession(session);
-                                    localStorage.setItem('ziegler_active_session_code', session.code);
-                                    localStorage.setItem('ziegler_active_session_id', session.id);
-                                    localStorage.setItem('ziegler_active_session_team_id', session.team_id);
-                                  }}
-                                  className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-650 hover:text-indigo-805 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition-all cursor-pointer"
-                                >
-                                  <span>Choose Role</span>
-                                  <ArrowRight className="h-3.5 w-3.5" />
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
+                              </span>
+                            </div>
+                            
+                            <div className="flex items-center justify-between border-t border-slate-100/60 pt-3">
+                              <div className="flex items-center gap-1.5">
+                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold border ${stats.photographers > 0 ? 'bg-indigo-50 text-indigo-700 border-indigo-100' : 'bg-slate-50 text-slate-400 border-slate-100'}`}>
+                                  📷 {stats.photographers}
+                                </span>
+                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold border ${stats.taggers > 0 ? 'bg-violet-50 text-violet-700 border-violet-100' : 'bg-slate-50 text-slate-405 border-slate-100'}`}>
+                                  💻 {stats.taggers}/1
+                                </span>
+                              </div>
+                              
+                              <button
+                                onClick={() => {
+                                  setSelectedSession(session);
+                                  localStorage.setItem('ziegler_active_session_code', session.code);
+                                  localStorage.setItem('ziegler_active_session_id', session.id);
+                                  localStorage.setItem('ziegler_active_session_team_id', session.team_id);
+                                }}
+                                className="inline-flex items-center gap-1.5 text-[11px] font-bold text-indigo-650 bg-indigo-50 hover:bg-indigo-100 px-3.5 py-1.5 rounded-xl transition-all cursor-pointer"
+                              >
+                                <span>Enter</span>
+                                <ArrowRight className="h-3 w-3" />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
                 )}
               </div>
 

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Camera, Laptop, Layers, LogOut, User, Menu, X, Users, Compass, AlertCircle } from 'lucide-react';
+import { Camera, Laptop, Layers, LogOut, User, Menu, X, Users, Compass, AlertCircle, History } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 
 export default function Navigation({ children }: { children: React.ReactNode }) {
@@ -59,6 +59,12 @@ export default function Navigation({ children }: { children: React.ReactNode }) 
       href: taggingHref,
       icon: Laptop,
       active: pathname === '/tagging',
+    },
+    {
+      name: 'Digitization Log',
+      href: '/log',
+      icon: History,
+      active: pathname === '/log',
     },
   ];
 
